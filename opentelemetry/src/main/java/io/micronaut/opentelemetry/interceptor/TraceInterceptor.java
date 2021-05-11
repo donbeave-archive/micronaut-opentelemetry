@@ -37,6 +37,8 @@ import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Singleton;
 import java.util.Optional;
@@ -54,6 +56,9 @@ import java.util.concurrent.CompletionStage;
 // FIXME
 //@Requires(beans = Tracer.class)
 public class TraceInterceptor implements MethodInterceptor<Object, Object> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(TraceInterceptor.class);
+
     public static final String CLASS_TAG = "class";
     public static final String METHOD_TAG = "method";
 
@@ -109,6 +114,11 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                 openTelemetry.getTracer("instrumentation-library-name", "1.0.0");
 
         Span currentSpan = Span.current();
+
+        if (currentSpan != null) {
+            LOG.debug("TRACE ID: {}", currentSpan.getSpanContext().getTraceId());
+        }
+
         if (isContinue) {
             if (currentSpan == null) {
                 return context.proceed();
@@ -183,6 +193,9 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                          */
                     case COMPLETION_STAGE:
                         Span span = builder.startSpan();
+                        if (span != null) {
+                            LOG.debug("TRACE ID: {}", span.getSpanContext().getTraceId());
+                        }
                         try (Scope scope = span.makeCurrent()) {
                             populateTags(context, hystrixCommand, span);
                             try {
@@ -203,6 +216,9 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                         }
                     case SYNCHRONOUS:
                         Span syncSpan = builder.startSpan();
+                        if (syncSpan != null) {
+                            LOG.debug("TRACE ID: {}", syncSpan.getSpanContext().getTraceId());
+                        }
                         try (Scope scope = syncSpan.makeCurrent()) {
                             populateTags(context, hystrixCommand, syncSpan);
                             try {
@@ -262,7 +278,6 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
 
     private void tagArguments(Span span, MethodInvocationContext<Object, Object> context) {
         // FIXME
-        throw new UnsupportedOperationException();
         /*
         Argument[] arguments = context.getArguments();
         Object[] parameterValues = context.getParameterValues();
