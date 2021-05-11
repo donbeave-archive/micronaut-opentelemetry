@@ -1,13 +1,20 @@
 dependencies {
     annotationProcessor "io.micronaut:micronaut-inject-java"
     annotationProcessor "io.micronaut.docs:micronaut-docs-asciidoc-config-props:$micronautDocsVersion"
+    implementation("io.micronaut:micronaut-core")
+    implementation("io.micronaut:micronaut-aop")
 
     api "io.micronaut:micronaut-inject"
 
     testImplementation("org.spockframework:spock-core:${spockVersion}") {
-        exclude module:'groovy-all'
+        exclude module: 'groovy-all'
     }
     testImplementation "io.micronaut.test:micronaut-test-spock:$micronautTestVersion"
+
+    implementation(platform("io.opentelemetry:opentelemetry-bom:1.2.0"))
+    api("io.opentelemetry:opentelemetry-api")
+    api("io.opentelemetry:opentelemetry-sdk")
+    api("io.opentelemetry:opentelemetry-exporter-otlp")
 }
 
 tasks.withType(Test) {
