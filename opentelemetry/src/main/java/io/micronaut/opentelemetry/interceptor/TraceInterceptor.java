@@ -115,6 +115,10 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
 
         Span currentSpan = Span.current();
 
+        if (!currentSpan.getSpanContext().isValid()) {
+            currentSpan = null;
+        }
+
         if (currentSpan != null) {
             LOG.debug("TRACE ID: {}", currentSpan.getSpanContext().getTraceId());
         }
