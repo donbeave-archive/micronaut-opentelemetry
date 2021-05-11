@@ -19,33 +19,25 @@ import io.micronaut.aop.InterceptPhase;
 import io.micronaut.aop.InterceptedMethod;
 import io.micronaut.aop.MethodInterceptor;
 import io.micronaut.aop.MethodInvocationContext;
-import io.micronaut.context.annotation.Requires;
-import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.annotation.AnnotationValue;
-import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.opentelemetry.annotation.ContinueSpan;
 import io.micronaut.opentelemetry.annotation.NewSpan;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.Tracer;
-import io.opentracing.log.Fields;
-import org.reactivestreams.Publisher;
 
 import javax.inject.Singleton;
-import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
@@ -115,9 +107,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
         Tracer tracer =
                 openTelemetry.getTracer("instrumentation-library-name", "1.0.0");
 
-        Context.current().
-
-        Span currentSpan = tracer.activeSpan();
+        Span currentSpan = Span.current();
         if (isContinue) {
             if (currentSpan == null) {
                 return context.proceed();
@@ -126,7 +116,10 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
             try {
                 switch (interceptedMethod.resultType()) {
                     case PUBLISHER:
-                        Publisher<?> publisher = interceptedMethod.interceptResultAsPublisher();
+                        // FIXME
+                        throw new UnsupportedOperationException();
+                        /*
+                        Flow.Publisher<?> publisher = interceptedMethod.interceptResultAsPublisher();
                         if (publisher instanceof TracingPublisher) {
                             return publisher;
                         }
@@ -138,6 +131,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                                     }
                                 }
                         );
+                         */
                     case COMPLETION_STAGE:
                     case SYNCHRONOUS:
                         tagArguments(currentSpan, context);
@@ -161,15 +155,18 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                 // try hystrix command name
                 operationName = hystrixCommand.orElse(context.getMethodName());
             }
-            Tracer.SpanBuilder builder = tracer.buildSpan(operationName);
+            SpanBuilder builder = tracer.spanBuilder(operationName);
             if (currentSpan != null) {
-                builder.asChildOf(currentSpan);
+                // FIXME check
+                builder.setParent(Context.current());
             }
 
             InterceptedMethod interceptedMethod = InterceptedMethod.of(context);
             try {
                 switch (interceptedMethod.resultType()) {
                     case PUBLISHER:
+                        throw new UnsupportedOperationException();
+                        /*
                         Publisher<?> publisher = interceptedMethod.interceptResultAsPublisher();
                         if (publisher instanceof TracingPublisher) {
                             return publisher;
@@ -182,9 +179,10 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                                     }
                                 }
                         );
+                         */
                     case COMPLETION_STAGE:
-                        Span span = builder.start();
-                        try (Scope ignored = tracer.scopeManager().activate(span)) {
+                        Span span = builder.startSpan();
+                        try (Scope scope = span.makeCurrent()) {
                             populateTags(context, hystrixCommand, span);
                             try {
                                 CompletionStage<?> completionStage = interceptedMethod.interceptResultAsCompletionStage();
@@ -193,7 +191,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                                         if (throwable != null) {
                                             logError(span, throwable);
                                         }
-                                        span.finish();
+                                        span.end();
                                     });
                                 }
                                 return interceptedMethod.handleResult(completionStage);
@@ -203,8 +201,8 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                             }
                         }
                     case SYNCHRONOUS:
-                        Span syncSpan = builder.start();
-                        try (Scope scope = tracer.scopeManager().activate(syncSpan)) {
+                        Span syncSpan = builder.startSpan();
+                        try (Scope scope = syncSpan.makeCurrent()) {
                             populateTags(context, hystrixCommand, syncSpan);
                             try {
                                 return context.proceed();
@@ -212,7 +210,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                                 logError(syncSpan, e);
                                 throw e;
                             } finally {
-                                syncSpan.finish();
+                                syncSpan.end();
                             }
                         }
                     default:
@@ -225,14 +223,14 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
     }
 
     private void populateTags(MethodInvocationContext<Object, Object> context, Optional<String> hystrixCommand, Span span) {
-        span.setTag(CLASS_TAG, context.getDeclaringType().getSimpleName());
-        span.setTag(METHOD_TAG, context.getMethodName());
-        hystrixCommand.ifPresent(s -> span.setTag(TAG_HYSTRIX_COMMAND, s));
+        span.setAttribute(CLASS_TAG, context.getDeclaringType().getSimpleName());
+        span.setAttribute(METHOD_TAG, context.getMethodName());
+        hystrixCommand.ifPresent(s -> span.setAttribute(TAG_HYSTRIX_COMMAND, s));
         context.stringValue(HYSTRIX_ANNOTATION, "group").ifPresent(s ->
-                span.setTag(TAG_HYSTRIX_GROUP, s)
+                span.setAttribute(TAG_HYSTRIX_GROUP, s)
         );
         context.stringValue(HYSTRIX_ANNOTATION, "threadPool").ifPresent(s ->
-                span.setTag(TAG_HYSTRIX_THREAD_POOL, s)
+                span.setAttribute(TAG_HYSTRIX_THREAD_POOL, s)
         );
         tagArguments(span, context);
     }
@@ -244,6 +242,9 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
      * @param e    The error
      */
     public static void logError(Span span, Throwable e) {
+        // FIXME
+        throw new UnsupportedOperationException();
+        /*
         HashMap<String, Object> fields = new HashMap<>(2);
         fields.put(Fields.ERROR_OBJECT, e);
         String message = e.getMessage();
@@ -251,9 +252,13 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
             fields.put(Fields.MESSAGE, message);
         }
         span.log(fields);
+         */
     }
 
     private void tagArguments(Span span, MethodInvocationContext<Object, Object> context) {
+        // FIXME
+        throw new UnsupportedOperationException();
+        /*
         Argument[] arguments = context.getArguments();
         Object[] parameterValues = context.getParameterValues();
         for (int i = 0; i < arguments.length; i++) {
@@ -267,6 +272,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                 }
             }
         }
+         */
     }
 
 }
