@@ -27,6 +27,7 @@ import io.micronaut.opentelemetry.annotation.NewSpan;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
+import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
@@ -242,8 +243,12 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
      * @param e    The error
      */
     public static void logError(Span span, Throwable e) {
-        // FIXME
-        throw new UnsupportedOperationException();
+        if (e.getMessage() != null) {
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+        } else {
+            span.setStatus(StatusCode.ERROR);
+        }
+        // FIXME add error object
         /*
         HashMap<String, Object> fields = new HashMap<>(2);
         fields.put(Fields.ERROR_OBJECT, e);
