@@ -15,9 +15,9 @@
  */
 
 /**
- * Tracing annotations.
+ * HTTP Tracing.
  *
  * @author Alexey Zhokhov
  * @since 1.0
  */
-package io.micronaut.opentelemetry.annotation;
+package io.micronaut.opentelemetry.instrument.http;

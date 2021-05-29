@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 original authors
+ * Copyright 2020 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,12 +26,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * FIXME
  * <p>Indicates that the current span should be continued.</p>
  *
- * <p>Annotation Inspired by Spring Sleuth but using Open Tracing and Micronaut AOP</p>
+ * <p>Annotation Inspired by Spring Sleuth but using Open Telemetry and Micronaut AOP</p>
  *
- * @author graemerocher
+ * @author Alexey Zhokhov
  * @since 1.0
  */
 @Retention(RetentionPolicy.RUNTIME)

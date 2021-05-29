@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 original authors
+ * Copyright 2020 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,24 +19,24 @@ import io.micronaut.aop.InterceptPhase;
 import io.micronaut.aop.InterceptedMethod;
 import io.micronaut.aop.MethodInterceptor;
 import io.micronaut.aop.MethodInvocationContext;
+import io.micronaut.context.annotation.Requires;
+import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.annotation.AnnotationValue;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.opentelemetry.annotation.ContinueSpan;
 import io.micronaut.opentelemetry.annotation.NewSpan;
-import io.opentelemetry.api.OpenTelemetry;
+import io.micronaut.opentelemetry.annotation.SpanTag;
+import io.micronaut.opentelemetry.instrument.util.TracingPublisher;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
-import io.opentelemetry.context.propagation.ContextPropagators;
-import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,16 +45,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 /**
- * FIXME
  * An interceptor that implements tracing logic for {@link io.micronaut.opentelemetry.annotation.ContinueSpan} and
- * {@link io.micronaut.opentelemetry.annotation.NewSpan}. Using the Open Tracing API.
+ * {@link io.micronaut.opentelemetry.annotation.NewSpan}. Using the Open Telemetry API.
  *
- * @author graemerocher
+ * @author Alexey Zhokhov
  * @since 1.0
  */
 @Singleton
-// FIXME
-//@Requires(beans = Tracer.class)
+@Requires(beans = Tracer.class)
 public class TraceInterceptor implements MethodInterceptor<Object, Object> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TraceInterceptor.class);
@@ -68,30 +66,17 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
     private static final String HYSTRIX_ANNOTATION = "io.micronaut.configuration.hystrix.annotation.HystrixCommand";
 
     private final ConversionService<?> conversionService;
-
-    // FIXME
-    private OtlpGrpcSpanExporter otlpGrpcSpanExporter;
-    private SdkTracerProvider sdkTracerProvider;
-    private OpenTelemetry openTelemetry;
+    private final Tracer tracer;
 
     /**
      * Initialize the interceptor with tracer and conversion service.
      *
      * @param conversionService A service to convert from one type to another
+     * @param tracer
      */
-    public TraceInterceptor(ConversionService<?> conversionService) {
+    public TraceInterceptor(ConversionService<?> conversionService, Tracer tracer) {
         this.conversionService = conversionService;
-
-        otlpGrpcSpanExporter = OtlpGrpcSpanExporter.builder().build();
-
-        sdkTracerProvider = SdkTracerProvider.builder()
-                .addSpanProcessor(BatchSpanProcessor.builder(otlpGrpcSpanExporter).build())
-                .build();
-
-        openTelemetry = OpenTelemetrySdk.builder()
-                .setTracerProvider(sdkTracerProvider)
-                .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
-                .buildAndRegisterGlobal();
+        this.tracer = tracer;
     }
 
     @Override
@@ -108,10 +93,6 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
         if (!isContinue && !isNew) {
             return context.proceed();
         }
-
-        // FIXME
-        Tracer tracer =
-                openTelemetry.getTracer("instrumentation-library-name", "1.0.0");
 
         Span currentSpan = Span.current();
 
@@ -131,10 +112,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
             try {
                 switch (interceptedMethod.resultType()) {
                     case PUBLISHER:
-                        // FIXME
-                        throw new UnsupportedOperationException();
-                        /*
-                        Flow.Publisher<?> publisher = interceptedMethod.interceptResultAsPublisher();
+                        Publisher<?> publisher = interceptedMethod.interceptResultAsPublisher();
                         if (publisher instanceof TracingPublisher) {
                             return publisher;
                         }
@@ -146,7 +124,6 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                                     }
                                 }
                         );
-                         */
                     case COMPLETION_STAGE:
                     case SYNCHRONOUS:
                         tagArguments(currentSpan, context);
@@ -180,8 +157,6 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
             try {
                 switch (interceptedMethod.resultType()) {
                     case PUBLISHER:
-                        throw new UnsupportedOperationException();
-                        /*
                         Publisher<?> publisher = interceptedMethod.interceptResultAsPublisher();
                         if (publisher instanceof TracingPublisher) {
                             return publisher;
@@ -194,13 +169,12 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                                     }
                                 }
                         );
-                         */
                     case COMPLETION_STAGE:
                         Span span = builder.startSpan();
                         if (span != null) {
                             LOG.debug("TRACE ID: {}", span.getSpanContext().getTraceId());
                         }
-                        try (Scope scope = span.makeCurrent()) {
+                        try (Scope ignored = span.makeCurrent()) {
                             populateTags(context, hystrixCommand, span);
                             try {
                                 CompletionStage<?> completionStage = interceptedMethod.interceptResultAsCompletionStage();
@@ -215,6 +189,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                                 return interceptedMethod.handleResult(completionStage);
                             } catch (RuntimeException e) {
                                 logError(span, e);
+                                span.end();
                                 throw e;
                             }
                         }
@@ -223,7 +198,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                         if (syncSpan != null) {
                             LOG.debug("TRACE ID: {}", syncSpan.getSpanContext().getTraceId());
                         }
-                        try (Scope scope = syncSpan.makeCurrent()) {
+                        try (Scope ignored = syncSpan.makeCurrent()) {
                             populateTags(context, hystrixCommand, syncSpan);
                             try {
                                 return context.proceed();
@@ -268,21 +243,11 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
         } else {
             span.setStatus(StatusCode.ERROR);
         }
-        // FIXME add error object
-        /*
-        HashMap<String, Object> fields = new HashMap<>(2);
-        fields.put(Fields.ERROR_OBJECT, e);
-        String message = e.getMessage();
-        if (message != null) {
-            fields.put(Fields.MESSAGE, message);
-        }
-        span.log(fields);
-         */
+
+        span.recordException(e);
     }
 
     private void tagArguments(Span span, MethodInvocationContext<Object, Object> context) {
-        // FIXME
-        /*
         Argument[] arguments = context.getArguments();
         Object[] parameterValues = context.getParameterValues();
         for (int i = 0; i < arguments.length; i++) {
@@ -292,11 +257,10 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
                 Object v = parameterValues[i];
                 if (v != null) {
                     String tagName = annotationMetadata.stringValue(SpanTag.class).orElse(argument.getName());
-                    span.setTag(tagName, v.toString());
+                    span.setAttribute(tagName, v.toString());
                 }
             }
         }
-         */
     }
 
 }
