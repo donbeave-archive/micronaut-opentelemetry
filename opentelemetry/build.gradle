@@ -8,6 +8,9 @@ dependencies {
     implementation("io.micronaut:micronaut-http")
     implementation("io.micronaut:micronaut-http-client-core")
 
+    implementation("io.micronaut.grpc:micronaut-grpc-server-runtime")
+    implementation("io.micronaut.grpc:micronaut-grpc-client-runtime")
+
     api "io.micronaut:micronaut-inject"
 
     testImplementation("org.spockframework:spock-core:${spockVersion}") {
@@ -19,6 +22,8 @@ dependencies {
     api("io.opentelemetry:opentelemetry-api")
     api("io.opentelemetry:opentelemetry-sdk")
     api("io.opentelemetry:opentelemetry-exporter-otlp")
+
+    api("io.opentelemetry.instrumentation:opentelemetry-grpc-1.6:1.2.0-alpha")
 }
 
 tasks.withType(Test) {
