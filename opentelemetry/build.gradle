@@ -4,6 +4,9 @@ dependencies {
     //annotationProcessor "io.micronaut.docs:micronaut-docs-asciidoc-config-props:$micronautDocsVersion"
     implementation("io.micronaut:micronaut-core")
     implementation("io.micronaut:micronaut-aop")
+    implementation("io.micronaut:micronaut-context")
+    implementation("io.micronaut:micronaut-http")
+    implementation("io.micronaut:micronaut-http-client-core")
 
     api "io.micronaut:micronaut-inject"
 
