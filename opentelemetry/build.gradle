@@ -22,6 +22,12 @@ dependencies {
     api("io.opentelemetry:opentelemetry-api")
     api("io.opentelemetry:opentelemetry-sdk")
     api("io.opentelemetry:opentelemetry-exporter-otlp")
+    api("io.opentelemetry:opentelemetry-proto:1.2.0-alpha")
+    api("io.opentelemetry:opentelemetry-api-metrics:1.2.0-alpha")
+    api("io.opentelemetry:opentelemetry-exporter-otlp-common:1.2.0")
+
+    compileOnly("io.grpc:grpc-netty")
+    compileOnly("io.grpc:grpc-netty-shaded")
 
     api("io.opentelemetry.instrumentation:opentelemetry-grpc-1.6:1.2.0-alpha")
 }
