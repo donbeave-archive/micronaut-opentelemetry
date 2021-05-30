@@ -56,34 +56,4 @@ public class GrpcClientTracingInterceptorConfiguration {
         return builder;
     }
 
-    /**
-     * Decorates the server span with custom data.
-     *
-     * @param clientSpanDecorator used to decorate the server span
-     */
-    // TODO
-    /*
-    @Inject
-    public void setClientSpanDecorator(@Nullable ClientSpanDecorator clientSpanDecorator) {
-        if (clientSpanDecorator != null) {
-            builder.withClientSpanDecorator(clientSpanDecorator);
-        }
-    }
-     */
-
-    /**
-     * Decorates the server span with custom data when the gRPC call is closed.
-     *
-     * @param clientCloseDecorator used to decorate the server span
-     */
-    // TODO
-    /*
-    @Inject
-    public void setClientCloseDecorator(@Nullable ClientCloseDecorator clientCloseDecorator) {
-        if (clientCloseDecorator != null) {
-            builder.withClientCloseDecorator(clientCloseDecorator);
-        }
-    }
-     */
-
 }
