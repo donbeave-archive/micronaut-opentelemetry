@@ -41,8 +41,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Singleton;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 
 /**
  * An interceptor that implements tracing logic for {@link io.micronaut.opentelemetry.annotation.ContinueSpan} and
@@ -244,7 +248,18 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
             span.setStatus(StatusCode.ERROR);
         }
 
-        span.recordException(e);
+        span.recordException(unwrapThrowable(e));
+    }
+
+    protected static Throwable unwrapThrowable(Throwable throwable) {
+        if (throwable.getCause() != null
+                && (throwable instanceof ExecutionException
+                || throwable instanceof CompletionException
+                || throwable instanceof InvocationTargetException
+                || throwable instanceof UndeclaredThrowableException)) {
+            return unwrapThrowable(throwable.getCause());
+        }
+        return throwable;
     }
 
     private void tagArguments(Span span, MethodInvocationContext<Object, Object> context) {
