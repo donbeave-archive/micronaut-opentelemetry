@@ -46,8 +46,8 @@ public class TestConfig {
     @Bean
     @Singleton
     public SdkTracerProvider otelSdkTraceProvider(SpanProcessor spanProcessor, ApplicationContext applicationContext) {
-        String applicationName =
-                applicationContext.getProperty("micronaut.application.name", String.class).orElse(io.micronaut.context.env.Environment.DEFAULT_NAME);
+        String applicationName = applicationContext.getProperty("micronaut.application.name", String.class)
+                .orElse(io.micronaut.context.env.Environment.DEFAULT_NAME);
 
         return SdkTracerProvider.builder()
                 .addSpanProcessor(spanProcessor)
