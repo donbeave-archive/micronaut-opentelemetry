@@ -12,7 +12,7 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.SpanProcessor;
-import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 
 import javax.inject.Inject;
@@ -26,20 +26,18 @@ import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SE
  * @author Alexey Zhokhov
  */
 @Factory
-public class TestConfig {
+public class OpenTelemetryConfig {
 
     @Bean
     @Singleton
     public SpanExporter otelSpanExporter() {
         return OtlpGrpcSpanExporter.builder().build();
-        //return OtlpGrpcSpanExporter2.builder().build();
     }
 
     @Bean
     @Singleton
     public SpanProcessor otelSpanProcessor(SpanExporter spanExporter) {
-        //return BatchSpanProcessor.builder(spanExporter).build();
-        return SimpleSpanProcessor.create(spanExporter);
+        return BatchSpanProcessor.builder(spanExporter).setMaxQueueSize(1).setMaxExportBatchSize(1).build();
     }
 
     @Inject
