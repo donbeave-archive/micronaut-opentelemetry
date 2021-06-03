@@ -3,6 +3,7 @@ package io.micronaut.opentelemetry;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
@@ -15,6 +16,7 @@ import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -66,6 +68,11 @@ public class OpenTelemetryConfig {
     @Singleton
     public Tracer otelTracer(OpenTelemetry openTelemetry) {
         return openTelemetry.getTracer("micronaut-opentelemetry", "1.0.0");
+    }
+
+    @PreDestroy
+    public void preDestroy() {
+        GlobalOpenTelemetry.resetForTest();
     }
 
 }
