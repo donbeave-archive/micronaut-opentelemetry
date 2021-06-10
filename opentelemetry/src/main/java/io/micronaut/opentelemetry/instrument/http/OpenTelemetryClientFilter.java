@@ -23,11 +23,8 @@ import io.micronaut.http.annotation.Filter;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.filter.ClientFilterChain;
 import io.micronaut.http.filter.HttpClientFilter;
+import io.micronaut.opentelemetry.instrument.util.MicronautTracer;
 import io.micronaut.opentelemetry.instrument.util.TracingPublisher;
-import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanBuilder;
-import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
@@ -43,17 +40,14 @@ import org.reactivestreams.Publisher;
 @Requires(beans = Tracer.class)
 public class OpenTelemetryClientFilter extends AbstractOpenTelemetryFilter implements HttpClientFilter {
 
-    private final OpenTelemetry openTelemetry;
-
     /**
      * Initialize the open tracing client filter with tracer.
      *
      * @param tracer         The tracer for span creation and configuring across arbitrary transports
      * @param openTelemetry1
      */
-    public OpenTelemetryClientFilter(Tracer tracer, OpenTelemetry openTelemetry) {
+    public OpenTelemetryClientFilter(MicronautTracer tracer) {
         super(tracer);
-        this.openTelemetry = openTelemetry;
     }
 
     @SuppressWarnings("unchecked")
@@ -61,19 +55,18 @@ public class OpenTelemetryClientFilter extends AbstractOpenTelemetryFilter imple
     public Publisher<? extends HttpResponse<?>> doFilter(MutableHttpRequest<?> request, ClientFilterChain chain) {
         Publisher<? extends HttpResponse<?>> requestPublisher = chain.proceed(request);
 
-        Context activeContext = Context.current();
-        SpanBuilder spanBuilder = newSpan(request, activeContext).setSpanKind(SpanKind.CLIENT);
-
         return new TracingPublisher(
                 requestPublisher,
                 tracer,
-                spanBuilder,
-                true
+                resolveSpanName(request),
+                SpanKind.CLIENT,
+                Context.current()
         ) {
             @Override
-            protected void doOnSubscribe(@NonNull Span span) {
-                span.setAttribute(TAG_HTTP_CLIENT, true);
-                SpanContext spanContext = span.getSpanContext();
+            protected void doOnSubscribe(@NonNull Context span) {
+                // TODO
+                //span.setAttribute(TAG_HTTP_CLIENT, true);
+                //SpanContext spanContext = span.getSpanContext();
 
                 // TODO
                 //openTelemetry.getPropagators().getTextMapPropagator().inject(Context.current(), transportLayer, setter);
@@ -87,28 +80,30 @@ public class OpenTelemetryClientFilter extends AbstractOpenTelemetryFilter imple
                 );
                  */
 
+                /*
                 request.setAttribute(
                         TraceRequestAttributes.CURRENT_SPAN_CONTEXT,
                         spanContext
                 );
+                 */
                 request.setAttribute(TraceRequestAttributes.CURRENT_SPAN, span);
             }
 
             @Override
-            protected void doOnNext(@NonNull Object object, @NonNull Span span) {
+            protected void doOnNext(@NonNull Object object, @NonNull Context span) {
                 if (object instanceof HttpResponse) {
                     setResponseTags(request, (HttpResponse<?>) object, span);
                 }
             }
 
             @Override
-            protected void doOnError(@NonNull Throwable error, @NonNull Span span) {
+            protected void doOnError(@NonNull Throwable error, @NonNull Context span) {
                 if (error instanceof HttpClientResponseException) {
                     HttpClientResponseException e = (HttpClientResponseException) error;
                     HttpResponse<?> response = e.getResponse();
                     setResponseTags(request, response, span);
                 }
-                setErrorTags(span, error);
+                tracer.onException(span, error);
             }
         };
     }

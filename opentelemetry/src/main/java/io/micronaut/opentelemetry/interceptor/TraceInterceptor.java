@@ -20,37 +20,34 @@ import io.micronaut.aop.InterceptedMethod;
 import io.micronaut.aop.MethodInterceptor;
 import io.micronaut.aop.MethodInvocationContext;
 import io.micronaut.context.annotation.Requires;
-import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.opentelemetry.annotation.ContinueSpan;
-import io.micronaut.opentelemetry.annotation.NewSpan;
-import io.micronaut.opentelemetry.annotation.SpanTag;
+import io.micronaut.inject.ExecutableMethod;
+import io.micronaut.opentelemetry.annotation.WithSpanAdvice;
+import io.micronaut.opentelemetry.instrument.util.MicronautTracer;
 import io.micronaut.opentelemetry.instrument.util.TracingPublisher;
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanBuilder;
-import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.instrumentation.api.tracer.ClientSpan;
+import io.opentelemetry.instrumentation.api.tracer.ServerSpan;
+import io.opentelemetry.semconv.trace.attributes.SemanticAttributes;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Singleton;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Optional;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
+
+import static io.opentelemetry.instrumentation.api.tracer.BaseTracer.spanNameForMethod;
 
 /**
- * An interceptor that implements tracing logic for {@link io.micronaut.opentelemetry.annotation.ContinueSpan} and
- * {@link io.micronaut.opentelemetry.annotation.NewSpan}. Using the Open Telemetry API.
+ * TODO description
+ * <p>
+ * Mostly based on the code from the official opentelemetry-java-instrumentation library.
  *
  * @author Alexey Zhokhov
  * @since 1.0
@@ -61,25 +58,11 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TraceInterceptor.class);
 
-    public static final String CLASS_TAG = "class";
-    public static final String METHOD_TAG = "method";
+    private static final String KIND_MEMBER = "kind";
 
-    private static final String TAG_HYSTRIX_COMMAND = "hystrix.command";
-    private static final String TAG_HYSTRIX_GROUP = "hystrix.group";
-    private static final String TAG_HYSTRIX_THREAD_POOL = "hystrix.threadPool";
-    private static final String HYSTRIX_ANNOTATION = "io.micronaut.configuration.hystrix.annotation.HystrixCommand";
+    private final MicronautTracer tracer;
 
-    private final ConversionService<?> conversionService;
-    private final Tracer tracer;
-
-    /**
-     * Initialize the interceptor with tracer and conversion service.
-     *
-     * @param conversionService A service to convert from one type to another
-     * @param tracer
-     */
-    public TraceInterceptor(ConversionService<?> conversionService, Tracer tracer) {
-        this.conversionService = conversionService;
+    public TraceInterceptor(MicronautTracer tracer) {
         this.tracer = tracer;
     }
 
@@ -90,191 +73,126 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Object intercept(MethodInvocationContext<Object, Object> context) {
-        boolean isContinue = context.hasAnnotation(ContinueSpan.class);
-        AnnotationValue<NewSpan> newSpan = context.getAnnotation(NewSpan.class);
-        boolean isNew = newSpan != null;
-        if (!isContinue && !isNew) {
-            return context.proceed();
+    public Object intercept(MethodInvocationContext<Object, Object> invocationContext) {
+        AnnotationValue<WithSpanAdvice> withSpanAdvice = invocationContext.getAnnotation(WithSpanAdvice.class);
+
+        SpanKind kind = extractSpanKind(withSpanAdvice);
+        Context current = Context.current();
+
+        // don't create a nested span if you're not supposed to.
+        if (!tracer.shouldStartSpan(current, kind)) {
+            return invocationContext.proceed();
         }
 
-        Span currentSpan = Span.current();
-
-        if (!currentSpan.getSpanContext().isValid()) {
-            currentSpan = null;
-        }
-
-        if (currentSpan != null) {
-            LOG.debug("TRACE ID: {}", currentSpan.getSpanContext().getTraceId());
-        }
-
-        if (isContinue) {
-            if (currentSpan == null) {
-                return context.proceed();
-            }
-            InterceptedMethod interceptedMethod = InterceptedMethod.of(context);
-            try {
-                switch (interceptedMethod.resultType()) {
-                    case PUBLISHER:
-                        Publisher<?> publisher = interceptedMethod.interceptResultAsPublisher();
-                        if (publisher instanceof TracingPublisher) {
-                            return publisher;
-                        }
-                        return interceptedMethod.handleResult(
-                                new TracingPublisher(publisher, tracer) {
-                                    @Override
-                                    protected void doOnSubscribe(@NonNull Span span) {
-                                        tagArguments(span, context);
-                                    }
+        InterceptedMethod interceptedMethod = InterceptedMethod.of(invocationContext);
+        try {
+            switch (interceptedMethod.resultType()) {
+                case PUBLISHER:
+                    Publisher<?> publisher = interceptedMethod.interceptResultAsPublisher();
+                    if (publisher instanceof TracingPublisher) {
+                        return publisher;
+                    }
+                    return interceptedMethod.handleResult(
+                            new TracingPublisher(
+                                    publisher, tracer, spanNameForMethodWithAnnotation(withSpanAdvice, invocationContext.getExecutableMethod()),
+                                    kind, current
+                            ) {
+                                @Override
+                                protected void doOnSubscribe(@NonNull Context span) {
+                                    populateTags(invocationContext, span);
                                 }
-                        );
-                    case COMPLETION_STAGE:
-                    case SYNCHRONOUS:
-                        tagArguments(currentSpan, context);
+                            }
+                    );
+                case COMPLETION_STAGE:
+                    Context completionStageContext =
+                            startSpan(current, withSpanAdvice, invocationContext.getExecutableMethod(), kind);
+
+                    try (Scope ignored = completionStageContext.makeCurrent()) {
+                        populateTags(invocationContext, completionStageContext);
                         try {
-                            return context.proceed();
+                            CompletionStage<?> completionStage = interceptedMethod.interceptResultAsCompletionStage();
+                            if (completionStage != null) {
+                                completionStage = completionStage.whenComplete((o, throwable) -> {
+                                    if (throwable != null) {
+                                        tracer.endExceptionally(completionStageContext, throwable);
+                                    } else {
+                                        tracer.end(completionStageContext);
+                                    }
+                                });
+                            }
+                            return interceptedMethod.handleResult(completionStage);
                         } catch (RuntimeException e) {
-                            logError(currentSpan, e);
+                            tracer.endExceptionally(completionStageContext, e);
                             throw e;
                         }
-                    default:
-                        return interceptedMethod.unsupported();
-                }
-            } catch (Exception e) {
-                return interceptedMethod.handleException(e);
-            }
-        } else {
-            // must be new
-            String operationName = newSpan.stringValue().orElse(null);
-            Optional<String> hystrixCommand = context.stringValue(HYSTRIX_ANNOTATION);
-            if (StringUtils.isEmpty(operationName)) {
-                // try hystrix command name
-                operationName = hystrixCommand.orElse(context.getMethodName());
-            }
-            SpanBuilder builder = tracer.spanBuilder(operationName);
-            if (currentSpan != null) {
-                // FIXME check
-                builder.setParent(Context.current());
-            }
+                    }
+                case SYNCHRONOUS:
+                    Context syncContext =
+                            startSpan(current, withSpanAdvice, invocationContext.getExecutableMethod(), kind);
 
-            InterceptedMethod interceptedMethod = InterceptedMethod.of(context);
-            try {
-                switch (interceptedMethod.resultType()) {
-                    case PUBLISHER:
-                        Publisher<?> publisher = interceptedMethod.interceptResultAsPublisher();
-                        if (publisher instanceof TracingPublisher) {
-                            return publisher;
-                        }
-                        return interceptedMethod.handleResult(
-                                new TracingPublisher(publisher, tracer, builder) {
-                                    @Override
-                                    protected void doOnSubscribe(@NonNull Span span) {
-                                        populateTags(context, hystrixCommand, span);
-                                    }
-                                }
-                        );
-                    case COMPLETION_STAGE:
-                        Span span = builder.startSpan();
-                        if (span != null) {
-                            LOG.debug("TRACE ID: {}", span.getSpanContext().getTraceId());
-                        }
-                        try (Scope ignored = span.makeCurrent()) {
-                            populateTags(context, hystrixCommand, span);
-                            try {
-                                CompletionStage<?> completionStage = interceptedMethod.interceptResultAsCompletionStage();
-                                if (completionStage != null) {
-                                    completionStage = completionStage.whenComplete((o, throwable) -> {
-                                        if (throwable != null) {
-                                            logError(span, throwable);
-                                        }
-                                        span.end();
-                                    });
-                                }
-                                return interceptedMethod.handleResult(completionStage);
-                            } catch (RuntimeException e) {
-                                logError(span, e);
-                                span.end();
-                                throw e;
-                            }
-                        }
-                    case SYNCHRONOUS:
-                        Span syncSpan = builder.startSpan();
-                        if (syncSpan != null) {
-                            LOG.debug("TRACE ID: {}", syncSpan.getSpanContext().getTraceId());
-                        }
-                        try (Scope ignored = syncSpan.makeCurrent()) {
-                            populateTags(context, hystrixCommand, syncSpan);
-                            try {
-                                return context.proceed();
-                            } catch (RuntimeException e) {
-                                logError(syncSpan, e);
-                                throw e;
-                            } finally {
-                                syncSpan.end();
-                            }
-                        }
-                    default:
-                        return interceptedMethod.unsupported();
-                }
-            } catch (Exception e) {
-                return interceptedMethod.handleException(e);
+                    try (Scope ignored = syncContext.makeCurrent()) {
+                        populateTags(invocationContext, syncContext);
+                        return invocationContext.proceed();
+                    } catch (RuntimeException e) {
+                        tracer.onException(syncContext, e);
+                        throw e;
+                    } finally {
+                        tracer.end(syncContext);
+                    }
+                default:
+                    return interceptedMethod.unsupported();
             }
+        } catch (Exception e) {
+            return interceptedMethod.handleException(e);
         }
     }
 
-    private void populateTags(MethodInvocationContext<Object, Object> context, Optional<String> hystrixCommand, Span span) {
-        span.setAttribute(CLASS_TAG, context.getDeclaringType().getSimpleName());
-        span.setAttribute(METHOD_TAG, context.getMethodName());
-        hystrixCommand.ifPresent(s -> span.setAttribute(TAG_HYSTRIX_COMMAND, s));
-        context.stringValue(HYSTRIX_ANNOTATION, "group").ifPresent(s ->
-                span.setAttribute(TAG_HYSTRIX_GROUP, s)
-        );
-        context.stringValue(HYSTRIX_ANNOTATION, "threadPool").ifPresent(s ->
-                span.setAttribute(TAG_HYSTRIX_THREAD_POOL, s)
-        );
-        tagArguments(span, context);
+    private void populateTags(MethodInvocationContext<Object, Object> context, Context otelContext) {
+        Span span = Span.fromContext(otelContext);
+
+        span.setAttribute(SemanticAttributes.CODE_NAMESPACE, context.getDeclaringType().getName());
+        span.setAttribute(SemanticAttributes.CODE_FUNCTION, context.getMethodName());
+    }
+
+    private Context startSpan(Context parentContext, AnnotationValue<WithSpanAdvice> withSpanAdvice,
+                              ExecutableMethod executableMethod, SpanKind kind) {
+        Context context = tracer
+                .startSpan(parentContext, spanNameForMethodWithAnnotation(withSpanAdvice, executableMethod), kind);
+        Span span = Span.fromContext(context);
+        if (kind == SpanKind.SERVER) {
+            return ServerSpan.with(parentContext.with(span), span);
+        }
+        if (kind == SpanKind.CLIENT) {
+            return ClientSpan.with(parentContext.with(span), span);
+        }
+        return parentContext.with(span);
     }
 
     /**
-     * Logs an error to the span.
-     *
-     * @param span The span
-     * @param e    The error
+     * This method is used to generate an acceptable span (operation) name based on a given method
+     * reference. It first checks for existence of {@link WithSpanAdvice} annotation. If it is present, then
+     * tries to derive name from its {@code value} attribute. Otherwise delegates to spanNameForMethod(Method).
      */
-    public static void logError(Span span, Throwable e) {
-        if (e.getMessage() != null) {
-            span.setStatus(StatusCode.ERROR, e.getMessage());
-        } else {
-            span.setStatus(StatusCode.ERROR);
-        }
-
-        span.recordException(unwrapThrowable(e));
+    private String spanNameForMethodWithAnnotation(AnnotationValue<WithSpanAdvice> withSpanAdvice,
+                                                   ExecutableMethod executableMethod) {
+        Optional<String> value = withSpanAdvice.getValue(String.class);
+        return value.orElseGet(() -> spanNameForMethod(executableMethod.getTargetMethod()));
     }
 
-    protected static Throwable unwrapThrowable(Throwable throwable) {
-        if (throwable.getCause() != null
-                && (throwable instanceof ExecutionException
-                || throwable instanceof CompletionException
-                || throwable instanceof InvocationTargetException
-                || throwable instanceof UndeclaredThrowableException)) {
-            return unwrapThrowable(throwable.getCause());
-        }
-        return throwable;
+    private SpanKind extractSpanKind(AnnotationValue<WithSpanAdvice> withSpanAdvice) {
+        io.micronaut.opentelemetry.api.SpanKind applicationKind = withSpanAdvice
+                .get(KIND_MEMBER, io.micronaut.opentelemetry.api.SpanKind.class)
+                .orElse(io.micronaut.opentelemetry.api.SpanKind.INTERNAL);
+
+        return toAgentOrNull(applicationKind);
     }
 
-    private void tagArguments(Span span, MethodInvocationContext<Object, Object> context) {
-        Argument[] arguments = context.getArguments();
-        Object[] parameterValues = context.getParameterValues();
-        for (int i = 0; i < arguments.length; i++) {
-            Argument argument = arguments[i];
-            AnnotationMetadata annotationMetadata = argument.getAnnotationMetadata();
-            if (annotationMetadata.hasAnnotation(SpanTag.class)) {
-                Object v = parameterValues[i];
-                if (v != null) {
-                    String tagName = annotationMetadata.stringValue(SpanTag.class).orElse(argument.getName());
-                    span.setAttribute(tagName, v.toString());
-                }
-            }
+    private SpanKind toAgentOrNull(io.micronaut.opentelemetry.api.SpanKind applicationSpanKind) {
+        try {
+            return SpanKind.valueOf(applicationSpanKind.name());
+        } catch (IllegalArgumentException e) {
+            LOG.debug("unexpected span kind: {}", applicationSpanKind.name());
+            return SpanKind.INTERNAL;
         }
     }
 

@@ -1,3 +1,4 @@
 rootProject.name = 'opentelemetry'
 
 include 'opentelemetry'
+include 'opentelemetry-processor'

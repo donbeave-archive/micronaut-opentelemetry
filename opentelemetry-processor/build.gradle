@@ -1,0 +1,5 @@
+dependencies {
+    api "io.micronaut:micronaut-inject:$micronautVersion"
+    api "io.micronaut:micronaut-aop:$micronautVersion"
+    api "io.opentelemetry:opentelemetry-extension-annotations:1.2.0"
+}

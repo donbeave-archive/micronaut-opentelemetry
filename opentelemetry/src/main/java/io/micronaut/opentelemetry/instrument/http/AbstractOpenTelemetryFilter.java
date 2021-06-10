@@ -18,11 +18,9 @@ package io.micronaut.opentelemetry.instrument.http;
 import io.micronaut.http.HttpAttributes;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
-import io.micronaut.http.HttpStatus;
 import io.micronaut.http.filter.HttpFilter;
-import io.opentelemetry.api.trace.Span;
+import io.micronaut.opentelemetry.instrument.util.MicronautTracer;
 import io.opentelemetry.api.trace.SpanBuilder;
-import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 
 import java.util.Optional;
@@ -47,14 +45,14 @@ public abstract class AbstractOpenTelemetryFilter implements HttpFilter {
 
     private static final int HTTP_SUCCESS_CODE_UPPER_LIMIT = 299;
 
-    protected final Tracer tracer;
+    protected final MicronautTracer tracer;
 
     /**
      * Configure tracer in the filter for span creation and propagation across arbitrary transports.
      *
      * @param tracer The tracer
      */
-    public AbstractOpenTelemetryFilter(Tracer tracer) {
+    public AbstractOpenTelemetryFilter(MicronautTracer tracer) {
         this.tracer = tracer;
     }
 
@@ -65,7 +63,9 @@ public abstract class AbstractOpenTelemetryFilter implements HttpFilter {
      * @param response The response
      * @param span     The span
      */
-    protected void setResponseTags(HttpRequest<?> request, HttpResponse<?> response, Span span) {
+    protected void setResponseTags(HttpRequest<?> request, HttpResponse<?> response, Context span) {
+        // TODO
+        /*
         HttpStatus status = response.getStatus();
         int code = status.getCode();
         if (code > HTTP_SUCCESS_CODE_UPPER_LIMIT) {
@@ -75,22 +75,7 @@ public abstract class AbstractOpenTelemetryFilter implements HttpFilter {
         request.getAttribute(HttpAttributes.ERROR, Throwable.class).ifPresent(error ->
                 setErrorTags(span, error)
         );
-    }
-
-    /**
-     * Sets the error tags to use on the span.
-     *
-     * @param span  The span
-     * @param error The error
-     */
-    protected void setErrorTags(Span span, Throwable error) {
-        if (error != null) {
-            String message = error.getMessage();
-            if (message == null) {
-                message = error.getClass().getSimpleName();
-            }
-            span.setAttribute(TAG_ERROR, message);
-        }
+         */
     }
 
     /**
@@ -112,10 +97,10 @@ public abstract class AbstractOpenTelemetryFilter implements HttpFilter {
      * @return The span builder
      */
     protected SpanBuilder newSpan(HttpRequest<?> request, Context context) {
+        // TODO
+        /*
         String spanName = resolveSpanName(request);
-        SpanBuilder spanBuilder = tracer.spanBuilder(
-                spanName
-        );
+        SpanBuilder spanBuilder = tracer.spanBuilder(spanName);
 
         if (context != null) {
             spanBuilder = spanBuilder.setParent(context);
@@ -125,6 +110,8 @@ public abstract class AbstractOpenTelemetryFilter implements HttpFilter {
         String path = request.getPath();
         spanBuilder.setAttribute(TAG_PATH, path);
         return spanBuilder;
+         */
+        return null;
     }
 
 }
