@@ -65,7 +65,7 @@ public class OpenTelemetryServerFilter extends AbstractOpenTelemetryFilter imple
                 chain.proceed(request),
                 tracer,
                 resolveSpanName(request),
-                SpanKind.CLIENT,
+                SpanKind.SERVER,
                 initSpanContext(request)
         ) {
 
