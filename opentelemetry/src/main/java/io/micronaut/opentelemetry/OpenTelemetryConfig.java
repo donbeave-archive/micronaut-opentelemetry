@@ -5,9 +5,11 @@ import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.baggage.propagation.W3CBaggagePropagator;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -85,7 +87,12 @@ public class OpenTelemetryConfig {
     public OpenTelemetry openTelemetry(SdkTracerProvider sdkTracerProvider) {
         return OpenTelemetrySdk.builder()
                 .setTracerProvider(sdkTracerProvider)
-                .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+                .setPropagators(ContextPropagators.create(
+                        TextMapPropagator.composite(
+                                W3CTraceContextPropagator.getInstance(),
+                                W3CBaggagePropagator.getInstance()
+                        )
+                ))
                 .buildAndRegisterGlobal();
     }
 
