@@ -15,7 +15,7 @@ import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.SpanData;
-import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 
 import javax.annotation.PreDestroy;
@@ -63,8 +63,8 @@ public class OpenTelemetryConfig {
     @Bean
     @Singleton
     public SpanProcessor otelSpanProcessor(SpanExporter spanExporter) {
-        return SimpleSpanProcessor.create(spanExporter);
-        //return BatchSpanProcessor.builder(spanExporter).setMaxQueueSize(1).setMaxExportBatchSize(1).build();
+        //return SimpleSpanProcessor.create(spanExporter);
+        return BatchSpanProcessor.builder(spanExporter).setMaxQueueSize(1).setMaxExportBatchSize(1).build();
     }
 
     @Inject
