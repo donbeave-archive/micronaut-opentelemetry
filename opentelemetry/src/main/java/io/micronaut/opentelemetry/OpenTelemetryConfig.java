@@ -8,17 +8,19 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
-import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.SpanProcessor;
-import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import io.opentelemetry.sdk.trace.data.SpanData;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Collection;
 
 import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
 
@@ -33,13 +35,34 @@ public class OpenTelemetryConfig {
     @Bean
     @Singleton
     public SpanExporter otelSpanExporter() {
-        return OtlpGrpcSpanExporter.builder().build();
+        return new SpanExporter() {
+            @Override
+            public CompletableResultCode export(Collection<SpanData> spans) {
+                for (SpanData spanData : spans) {
+                    System.out.println("EXPORT SPAN:");
+                    System.out.println(spanData.toString());
+                }
+                return CompletableResultCode.ofSuccess();
+            }
+
+            @Override
+            public CompletableResultCode flush() {
+                return CompletableResultCode.ofSuccess();
+            }
+
+            @Override
+            public CompletableResultCode shutdown() {
+                return CompletableResultCode.ofSuccess();
+            }
+        };
+        //return OtlpGrpcSpanExporter.builder().build();
     }
 
     @Bean
     @Singleton
     public SpanProcessor otelSpanProcessor(SpanExporter spanExporter) {
-        return BatchSpanProcessor.builder(spanExporter).setMaxQueueSize(1).setMaxExportBatchSize(1).build();
+        return SimpleSpanProcessor.create(spanExporter);
+        //return BatchSpanProcessor.builder(spanExporter).setMaxQueueSize(1).setMaxExportBatchSize(1).build();
     }
 
     @Inject
