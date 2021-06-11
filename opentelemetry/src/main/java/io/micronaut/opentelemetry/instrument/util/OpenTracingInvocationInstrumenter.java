@@ -19,9 +19,9 @@ import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Internal;
 import io.micronaut.scheduling.instrument.InvocationInstrumenter;
 import io.micronaut.scheduling.instrument.ReactiveInvocationInstrumenterFactory;
-import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.ContextStorage;
 import io.opentelemetry.context.Scope;
 
 import javax.inject.Singleton;
@@ -38,17 +38,6 @@ import javax.inject.Singleton;
 @Internal
 public class OpenTracingInvocationInstrumenter implements TracingInvocationInstrumenterFactory, ReactiveInvocationInstrumenterFactory {
 
-    private final Tracer tracer;
-
-    /**
-     * Create a tracing invocation instrumenter.
-     *
-     * @param tracer invocation tracer
-     */
-    protected OpenTracingInvocationInstrumenter(Tracer tracer) {
-        this.tracer = tracer;
-    }
-
     @Override
     public InvocationInstrumenter newReactiveInvocationInstrumenter() {
         return newTracingInvocationInstrumenter();
@@ -56,7 +45,7 @@ public class OpenTracingInvocationInstrumenter implements TracingInvocationInstr
 
     @Override
     public InvocationInstrumenter newTracingInvocationInstrumenter() {
-        final Span activeSpan = Span.fromContextOrNull(Context.current());
+        final Context activeSpan = ContextStorage.get().current();
         if (activeSpan != null) {
             return () -> {
                 Scope activeScope = activeSpan.makeCurrent();
