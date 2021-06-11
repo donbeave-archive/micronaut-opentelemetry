@@ -64,7 +64,7 @@ public class OpenTelemetryConfig {
     @Singleton
     public SpanProcessor otelSpanProcessor(SpanExporter spanExporter) {
         //return SimpleSpanProcessor.create(spanExporter);
-        return BatchSpanProcessor.builder(spanExporter).setMaxQueueSize(1).setMaxExportBatchSize(1).build();
+        return BatchSpanProcessor.builder(spanExporter).setMaxExportBatchSize(1).build();
     }
 
     @Inject
