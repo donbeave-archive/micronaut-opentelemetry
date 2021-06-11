@@ -8,6 +8,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
@@ -35,6 +36,7 @@ public class OpenTelemetryConfig {
     @Bean
     @Singleton
     public SpanExporter otelSpanExporter() {
+        OtlpGrpcSpanExporter otlpGrpcSpanExporter = OtlpGrpcSpanExporter.builder().build();
         return new SpanExporter() {
             @Override
             public CompletableResultCode export(Collection<SpanData> spans) {
@@ -42,17 +44,17 @@ public class OpenTelemetryConfig {
                     System.out.println("EXPORT SPAN:");
                     System.out.println(spanData.toString());
                 }
-                return CompletableResultCode.ofSuccess();
+                return otlpGrpcSpanExporter.export(spans);
             }
 
             @Override
             public CompletableResultCode flush() {
-                return CompletableResultCode.ofSuccess();
+                return otlpGrpcSpanExporter.flush();
             }
 
             @Override
             public CompletableResultCode shutdown() {
-                return CompletableResultCode.ofSuccess();
+                return otlpGrpcSpanExporter.shutdown();
             }
         };
         //return OtlpGrpcSpanExporter.builder().build();
