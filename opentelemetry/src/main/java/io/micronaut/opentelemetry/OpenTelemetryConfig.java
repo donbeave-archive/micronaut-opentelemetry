@@ -21,6 +21,8 @@ import io.opentelemetry.sdk.trace.export.SpanExporter;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
 
@@ -35,13 +37,18 @@ public class OpenTelemetryConfig {
     @Bean
     @Singleton
     public SpanExporter otelSpanExporter() {
-        return OtlpGrpcSpanExporter.builder().build();
+        return OtlpGrpcSpanExporter.builder()
+                .setTimeout(Duration.ZERO)
+                .build();
     }
 
     @Bean
     @Singleton
     public SpanProcessor otelSpanProcessor(SpanExporter spanExporter) {
-        return BatchSpanProcessor.builder(spanExporter).setMaxExportBatchSize(1).build();
+        return BatchSpanProcessor.builder(spanExporter)
+                .setScheduleDelay(Duration.ZERO)
+                .setMaxExportBatchSize(1)
+                .build();
     }
 
     @Inject
@@ -78,9 +85,10 @@ public class OpenTelemetryConfig {
     }
 
     @PreDestroy
-    public void preDestroy(SpanExporter spanExporter, SpanProcessor spanProcessor) {
-        spanProcessor.forceFlush();
-        spanExporter.shutdown();
+    public void preDestroy(SpanProcessor spanProcessor) {
+        spanProcessor.forceFlush().join(10, TimeUnit.SECONDS);
+        spanProcessor.shutdown().join(10, TimeUnit.SECONDS);
+
         GlobalOpenTelemetry.resetForTest();
     }
 
