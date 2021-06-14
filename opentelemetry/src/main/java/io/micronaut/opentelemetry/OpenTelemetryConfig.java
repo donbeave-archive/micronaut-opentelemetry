@@ -12,18 +12,15 @@ import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.SpanProcessor;
-import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.Collection;
 
 import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
 
@@ -38,34 +35,12 @@ public class OpenTelemetryConfig {
     @Bean
     @Singleton
     public SpanExporter otelSpanExporter() {
-        OtlpGrpcSpanExporter otlpGrpcSpanExporter = OtlpGrpcSpanExporter.builder().build();
-        return new SpanExporter() {
-            @Override
-            public CompletableResultCode export(Collection<SpanData> spans) {
-                for (SpanData spanData : spans) {
-                    System.out.println("EXPORT SPAN:");
-                    System.out.println(spanData.toString());
-                }
-                return otlpGrpcSpanExporter.export(spans);
-            }
-
-            @Override
-            public CompletableResultCode flush() {
-                return otlpGrpcSpanExporter.flush();
-            }
-
-            @Override
-            public CompletableResultCode shutdown() {
-                return otlpGrpcSpanExporter.shutdown();
-            }
-        };
-        //return OtlpGrpcSpanExporter.builder().build();
+        return OtlpGrpcSpanExporter.builder().build();
     }
 
     @Bean
     @Singleton
     public SpanProcessor otelSpanProcessor(SpanExporter spanExporter) {
-        //return SimpleSpanProcessor.create(spanExporter);
         return BatchSpanProcessor.builder(spanExporter).setMaxExportBatchSize(1).build();
     }
 
@@ -103,7 +78,8 @@ public class OpenTelemetryConfig {
     }
 
     @PreDestroy
-    public void preDestroy() {
+    public void preDestroy(SpanExporter spanExporter) {
+        spanExporter.shutdown();
         GlobalOpenTelemetry.resetForTest();
     }
 
