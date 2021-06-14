@@ -78,7 +78,8 @@ public class OpenTelemetryConfig {
     }
 
     @PreDestroy
-    public void preDestroy(SpanExporter spanExporter) {
+    public void preDestroy(SpanExporter spanExporter, SpanProcessor spanProcessor) {
+        spanProcessor.forceFlush();
         spanExporter.shutdown();
         GlobalOpenTelemetry.resetForTest();
     }
