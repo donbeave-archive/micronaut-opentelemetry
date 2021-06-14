@@ -30,6 +30,7 @@ dependencies {
     compileOnly("io.grpc:grpc-netty-shaded")
 
     api("io.opentelemetry.instrumentation:opentelemetry-grpc-1.6:1.2.0-alpha")
+    api("io.opentelemetry.instrumentation:opentelemetry-logback-1.0:1.2.0-alpha")
 }
 
 tasks.withType(Test) {
