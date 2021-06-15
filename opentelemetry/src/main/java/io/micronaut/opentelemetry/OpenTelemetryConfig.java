@@ -41,7 +41,7 @@ public class OpenTelemetryConfig {
                 .build();
     }
 
-    @Bean
+    @Bean(preDestroy = "close")
     @Singleton
     public SpanProcessor otelSpanProcessor(SpanExporter spanExporter) {
         return BatchSpanProcessor.builder(spanExporter)
@@ -85,8 +85,6 @@ public class OpenTelemetryConfig {
 
     @PreDestroy
     public void preDestroy(SpanProcessor spanProcessor) {
-        spanProcessor.close();
-
         GlobalOpenTelemetry.resetForTest();
     }
 
