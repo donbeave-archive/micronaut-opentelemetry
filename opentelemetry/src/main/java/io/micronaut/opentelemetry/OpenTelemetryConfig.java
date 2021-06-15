@@ -22,7 +22,6 @@ import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
 
@@ -86,8 +85,7 @@ public class OpenTelemetryConfig {
 
     @PreDestroy
     public void preDestroy(SpanProcessor spanProcessor) {
-        spanProcessor.forceFlush().join(10, TimeUnit.SECONDS);
-        spanProcessor.shutdown().join(10, TimeUnit.SECONDS);
+        spanProcessor.close();
 
         GlobalOpenTelemetry.resetForTest();
     }
