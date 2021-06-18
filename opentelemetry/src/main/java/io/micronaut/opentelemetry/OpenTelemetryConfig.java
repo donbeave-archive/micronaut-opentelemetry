@@ -2,6 +2,7 @@ package io.micronaut.opentelemetry;
 
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Bean;
+import io.micronaut.context.annotation.Context;
 import io.micronaut.context.annotation.Factory;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
@@ -63,8 +64,10 @@ public class OpenTelemetryConfig {
                 .build();
     }
 
+    // we use @Context here because we need to register this bean globally just when the application is started
+    // initialization
     @Bean
-    @Singleton
+    @Context
     public OpenTelemetry openTelemetry(SdkTracerProvider sdkTracerProvider) {
         return OpenTelemetrySdk.builder()
                 .setTracerProvider(sdkTracerProvider)
