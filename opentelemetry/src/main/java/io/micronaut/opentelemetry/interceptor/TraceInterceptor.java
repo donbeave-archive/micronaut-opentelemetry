@@ -33,6 +33,7 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.instrumentation.api.tracer.ClientSpan;
 import io.opentelemetry.instrumentation.api.tracer.ServerSpan;
+import io.opentelemetry.instrumentation.api.tracer.SpanNames;
 import io.opentelemetry.semconv.trace.attributes.SemanticAttributes;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -41,8 +42,6 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Singleton;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
-
-import static io.opentelemetry.instrumentation.api.tracer.BaseTracer.spanNameForMethod;
 
 /**
  * TODO description
@@ -176,7 +175,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
     private String spanNameForMethodWithAnnotation(AnnotationValue<WithSpanAdvice> withSpanAdvice,
                                                    ExecutableMethod executableMethod) {
         Optional<String> value = withSpanAdvice.getValue(String.class);
-        return value.orElseGet(() -> spanNameForMethod(executableMethod.getTargetMethod()));
+        return value.orElseGet(() -> SpanNames.fromMethod(executableMethod.getTargetMethod()));
     }
 
     private SpanKind extractSpanKind(AnnotationValue<WithSpanAdvice> withSpanAdvice) {
