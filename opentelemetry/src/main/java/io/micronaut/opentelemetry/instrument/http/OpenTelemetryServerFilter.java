@@ -23,12 +23,12 @@ import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Filter;
 import io.micronaut.http.filter.HttpServerFilter;
 import io.micronaut.http.filter.ServerFilterChain;
-import io.micronaut.http.filter.ServerFilterPhase;
 import io.micronaut.opentelemetry.instrument.util.MicronautTracer;
 import io.micronaut.opentelemetry.instrument.util.TracingPublisher;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 import org.reactivestreams.Publisher;
 
 /**
@@ -99,11 +99,6 @@ public class OpenTelemetryServerFilter extends AbstractOpenTelemetryFilter imple
                 tracer.onException(span, throwable);
             }
         };
-    }
-
-    @Override
-    public int getOrder() {
-        return ServerFilterPhase.TRACING.order();
     }
 
     @NonNull

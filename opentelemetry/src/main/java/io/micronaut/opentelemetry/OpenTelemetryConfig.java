@@ -12,6 +12,7 @@ import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
+import io.opentelemetry.instrumentation.rxjava2.TracingAssembly;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -33,6 +34,14 @@ import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SE
  */
 @Factory
 public class OpenTelemetryConfig {
+
+    @Bean
+    @Context
+    public TracingAssembly tracingAssembly() {
+        TracingAssembly tracingAssembly = TracingAssembly.create();
+        tracingAssembly.enable();
+        return tracingAssembly;
+    }
 
     @Bean
     @Singleton

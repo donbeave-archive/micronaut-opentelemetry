@@ -17,17 +17,13 @@ package io.micronaut.opentelemetry.instrument.util;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.publisher.Publishers;
-import io.micronaut.http.MutableHttpResponse;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
-import io.opentelemetry.instrumentation.api.tracer.BaseTracer;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
-
-import java.util.Optional;
 
 /**
  * A reactive streams publisher that traces.
@@ -40,7 +36,7 @@ import java.util.Optional;
 public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
 
     private final Publisher<T> publisher;
-    private final BaseTracer tracer;
+    private final MicronautTracer tracer;
     private final String spanName;
     private final SpanKind kind;
     private final Context parentContext;
@@ -48,7 +44,7 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
     /**
      * Creates a new tracing publisher for the given arguments.
      */
-    public TracingPublisher(Publisher<T> publisher, BaseTracer tracer, String spanName, SpanKind kind,
+    public TracingPublisher(Publisher<T> publisher, MicronautTracer tracer, String spanName, SpanKind kind,
                             Context parentContext) {
         this.publisher = publisher;
         this.tracer = tracer;
@@ -59,16 +55,12 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
 
     @Override
     public void subscribe(Subscriber<? super T> actual) {
-        // TODO use span builder?
         Context span = tracer.startSpan(parentContext, spanName, kind);
 
         try (Scope ignored = span.makeCurrent()) {
             publisher.subscribe(new Subscriber<T>() {
                 @Override
                 public void onSubscribe(Subscription s) {
-                    // TODO
-                    System.out.println("onSubscribe");
-
                     try (Scope ignored = span.makeCurrent()) {
                         TracingPublisher.this.doOnSubscribe(span);
                         actual.onSubscribe(s);
@@ -77,23 +69,7 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
 
                 @Override
                 public void onNext(T object) {
-                    // TODO
-                    System.out.println("onNext");
-
                     try (Scope ignored = span.makeCurrent()) {
-                        if (object instanceof MutableHttpResponse) {
-                            MutableHttpResponse response = (MutableHttpResponse) object;
-                            Optional<?> body = response.getBody();
-                            if (body.isPresent()) {
-                                Object o = body.get();
-                                if (Publishers.isConvertibleToPublisher(o)) {
-                                    Class<?> type = o.getClass();
-                                    Publisher<?> resultPublisher = Publishers.convertPublisher(o, Publisher.class);
-                                    Publisher<?> scopedPublisher = new ScopePropagationPublisher(resultPublisher, span);
-                                    response.body(Publishers.convertPublisher(scopedPublisher, type));
-                                }
-                            }
-                        }
                         TracingPublisher.this.doOnNext(object, span);
                         actual.onNext(object);
                         TracingPublisher.this.doOnFinish(span);
@@ -104,9 +80,6 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
 
                 @Override
                 public void onError(Throwable t) {
-                    // TODO
-                    System.out.println("onError");
-
                     try (Scope ignored = span.makeCurrent()) {
                         TracingPublisher.this.onError(t, span);
                         actual.onError(t);
@@ -117,9 +90,6 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
 
                 @Override
                 public void onComplete() {
-                    // TODO
-                    System.out.println("onComplete");
-
                     try (Scope ignored = span.makeCurrent()) {
                         actual.onComplete();
                         TracingPublisher.this.doOnFinish(span);
