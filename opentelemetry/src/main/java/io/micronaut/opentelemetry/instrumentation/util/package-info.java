@@ -15,9 +15,9 @@
  */
 
 /**
- * HTTP Tracing.
+ * Tracing Util.
  *
  * @author Alexey Zhokhov
  * @since 1.0
  */
-package io.micronaut.opentelemetry.instrument.http;
+package io.micronaut.opentelemetry.instrumentation.util;

@@ -1,4 +1,4 @@
-package io.micronaut.opentelemetry.instrument.util;
+package io.micronaut.opentelemetry.instrumentation.util;
 
 import io.micronaut.core.annotation.Nullable;
 

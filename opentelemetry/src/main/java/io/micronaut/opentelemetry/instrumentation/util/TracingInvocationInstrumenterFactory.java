@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micronaut.opentelemetry.instrument.util;
+package io.micronaut.opentelemetry.instrumentation.util;
 
 import io.micronaut.core.annotation.Experimental;
 import io.micronaut.core.annotation.Nullable;

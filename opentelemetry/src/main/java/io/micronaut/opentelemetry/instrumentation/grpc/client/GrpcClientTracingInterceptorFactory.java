@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micronaut.opentelemetry.instrument.grpc.client;
+package io.micronaut.opentelemetry.instrumentation.grpc.client;
 
 import io.grpc.ClientInterceptor;
 import io.micronaut.context.annotation.Bean;

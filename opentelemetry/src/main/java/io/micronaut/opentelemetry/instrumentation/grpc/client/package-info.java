@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 original authors
+ * Copyright 2021 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 /**
- * Tracing Util.
- *
- * @author Alexey Zhokhov
- * @since 1.0
+ * Classes related to distributed tracing.
  */
-package io.micronaut.opentelemetry.instrument.util;
+@Configuration
+@Requires(classes = {OpenTelemetry.class, GrpcTracing.class})
+@Requires(beans = OpenTelemetry.class)
+package io.micronaut.opentelemetry.instrumentation.grpc.client;
+
+import io.micronaut.context.annotation.Configuration;
+import io.micronaut.context.annotation.Requires;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTracing;

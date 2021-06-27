@@ -1,4 +1,4 @@
-package io.micronaut.opentelemetry.instrument.http.client;
+package io.micronaut.opentelemetry.instrumentation.http.client;
 
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;

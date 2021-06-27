@@ -1,1 +1,1 @@
-io.micronaut.opentelemetry.processor.mappers.MappedEntityMapper
+io.micronaut.opentelemetry.processor.mappers.WithSpanAnnotationMapper

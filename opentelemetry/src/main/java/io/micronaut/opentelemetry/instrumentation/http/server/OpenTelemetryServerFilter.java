@@ -13,52 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micronaut.opentelemetry.instrument.http.client;
+package io.micronaut.opentelemetry.instrumentation.http.server;
 
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.async.publisher.Publishers;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.HttpAttributes;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Filter;
-import io.micronaut.http.filter.ClientFilterChain;
-import io.micronaut.http.filter.HttpClientFilter;
+import io.micronaut.http.filter.HttpServerFilter;
+import io.micronaut.http.filter.ServerFilterChain;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
+import java.util.Optional;
+
 /**
- * An HTTP client instrumentation filter that uses Open Telemetry.
+ * An HTTP server instrumentation filter that uses Open Telemetry.
  *
  * @author Alexey Zhokhov
  * @since 1.0
  */
-@Filter("${tracing.http.client.path:/**}")
-@Requires(beans = OpenTelemetry.class)
-public class OpenTelemetryClientFilter implements HttpClientFilter {
+@Filter("${tracing.http.server.path:/**}")
+@Requires(beans = Tracer.class)
+public class OpenTelemetryServerFilter implements HttpServerFilter {
 
-    private final MicronautHttpClientTracer tracer;
+    private static final CharSequence APPLIED = OpenTelemetryServerFilter.class.getName() + "-applied";
 
-    public OpenTelemetryClientFilter(OpenTelemetry openTelemetry) {
-        tracer = new MicronautHttpClientTracer(openTelemetry);
+    private final MicronautHttpServerTracer tracer;
+
+    /**
+     * Creates an HTTP server instrumentation filter.
+     */
+    public OpenTelemetryServerFilter(OpenTelemetry openTelemetry) {
+        this.tracer = new MicronautHttpServerTracer(openTelemetry);
     }
 
     @Override
-    public Publisher<? extends HttpResponse<?>> doFilter(MutableHttpRequest<?> request, ClientFilterChain chain) {
-        Publisher<? extends HttpResponse<?>> requestPublisher = chain.proceed(request);
+    public Publisher<MutableHttpResponse<?>> doFilter(final HttpRequest<?> request, ServerFilterChain chain) {
+        boolean applied = request.getAttribute(APPLIED, Boolean.class).orElse(false);
 
-        Context parentContext = Context.current();
-        if (!tracer.shouldStartSpan(parentContext)) {
-            return requestPublisher;
+        if (applied) {
+            return chain.proceed(request);
         }
 
-        return (Publishers.MicronautPublisher<HttpResponse<?>>) actual -> {
-            Context span = tracer.startSpan(parentContext, request, request);
+        request.setAttribute(APPLIED, true);
+
+        Publisher<MutableHttpResponse<?>> requestPublisher = chain.proceed(request);
+
+        return (Publishers.MicronautPublisher<MutableHttpResponse<?>>) actual -> {
+            Context span = tracer.startSpan(request, request, request, resolveSpanName(request));
 
             try (Scope ignored = span.makeCurrent()) {
-                requestPublisher.subscribe(new Subscriber<HttpResponse<?>>() {
+                requestPublisher.subscribe(new Subscriber<MutableHttpResponse<?>>() {
                     @Override
                     public void onSubscribe(Subscription s) {
                         try (Scope ignored = span.makeCurrent()) {
@@ -67,7 +79,7 @@ public class OpenTelemetryClientFilter implements HttpClientFilter {
                     }
 
                     @Override
-                    public void onNext(HttpResponse<?> object) {
+                    public void onNext(MutableHttpResponse<?> object) {
                         try (Scope ignored = span.makeCurrent()) {
                             actual.onNext(object);
                         } finally {
@@ -96,6 +108,17 @@ public class OpenTelemetryClientFilter implements HttpClientFilter {
                 });
             }
         };
+    }
+
+    /**
+     * Resolve the span name to use for the request.
+     *
+     * @param request The request
+     * @return The span name
+     */
+    protected String resolveSpanName(HttpRequest<?> request) {
+        Optional<String> route = request.getAttribute(HttpAttributes.URI_TEMPLATE, String.class);
+        return route.map(s -> request.getMethodName() + " " + s).orElse(request.getMethodName() + " " + request.getPath());
     }
 
 }

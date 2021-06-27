@@ -1,4 +1,4 @@
-package io.micronaut.opentelemetry.instrument.http.server;
+package io.micronaut.opentelemetry.instrumentation.http.server;
 
 import io.micronaut.http.HttpRequest;
 import io.opentelemetry.context.propagation.TextMapGetter;
