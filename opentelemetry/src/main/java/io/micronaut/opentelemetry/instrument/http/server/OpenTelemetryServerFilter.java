@@ -54,7 +54,6 @@ public class OpenTelemetryServerFilter implements HttpServerFilter {
         this.tracer = new MicronautHttpServerTracer(openTelemetry);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Publisher<MutableHttpResponse<?>> doFilter(final HttpRequest<?> request, ServerFilterChain chain) {
         boolean applied = request.getAttribute(APPLIED, Boolean.class).orElse(false);
