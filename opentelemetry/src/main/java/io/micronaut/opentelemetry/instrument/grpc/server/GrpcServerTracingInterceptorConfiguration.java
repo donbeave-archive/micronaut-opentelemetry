@@ -40,8 +40,6 @@ public class GrpcServerTracingInterceptorConfiguration {
 
     /**
      * Default constructor.
-     *
-     * @param tracer The tracer
      */
     protected GrpcServerTracingInterceptorConfiguration(OpenTelemetry openTelemetry) {
         this.builder = GrpcTracing.newBuilder(openTelemetry);

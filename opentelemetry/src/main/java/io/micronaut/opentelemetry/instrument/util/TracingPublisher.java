@@ -16,11 +16,13 @@
 package io.micronaut.opentelemetry.instrument.util;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.publisher.Publishers;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.instrumentation.api.tracer.BaseTracer;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -36,7 +38,8 @@ import org.reactivestreams.Subscription;
 public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
 
     private final Publisher<T> publisher;
-    private final MicronautTracer tracer;
+    private final BaseTracer tracer;
+    @Nullable
     private final String spanName;
     private final SpanKind kind;
     private final Context parentContext;
@@ -44,7 +47,7 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
     /**
      * Creates a new tracing publisher for the given arguments.
      */
-    public TracingPublisher(Publisher<T> publisher, MicronautTracer tracer, String spanName, SpanKind kind,
+    public TracingPublisher(Publisher<T> publisher, BaseTracer tracer, @Nullable String spanName, SpanKind kind,
                             Context parentContext) {
         this.publisher = publisher;
         this.tracer = tracer;
@@ -55,6 +58,13 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
 
     @Override
     public void subscribe(Subscriber<? super T> actual) {
+        // TODO remove me?
+        Context parentContext2 = Context.current();
+        if (!tracer.shouldStartSpan(parentContext, kind)) {
+            publisher.subscribe(actual);
+            return;
+        }
+
         Context span = tracer.startSpan(parentContext, spanName, kind);
 
         try (Scope ignored = span.makeCurrent()) {
@@ -62,7 +72,7 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
                 @Override
                 public void onSubscribe(Subscription s) {
                     try (Scope ignored = span.makeCurrent()) {
-                        TracingPublisher.this.doOnSubscribe(span);
+                        doOnSubscribe(span);
                         actual.onSubscribe(s);
                     }
                 }
@@ -70,9 +80,9 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
                 @Override
                 public void onNext(T object) {
                     try (Scope ignored = span.makeCurrent()) {
-                        TracingPublisher.this.doOnNext(object, span);
+                        doOnNext(object, span);
                         actual.onNext(object);
-                        TracingPublisher.this.doOnFinish(span);
+                        doOnFinish(span);
                     } finally {
                         tracer.end(span);
                     }
@@ -81,7 +91,8 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
                 @Override
                 public void onError(Throwable t) {
                     try (Scope ignored = span.makeCurrent()) {
-                        TracingPublisher.this.onError(t, span);
+                        tracer.onException(span, t);
+                        doOnError(t, span);
                         actual.onError(t);
                     } finally {
                         tracer.end(span);
@@ -92,7 +103,7 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
                 public void onComplete() {
                     try (Scope ignored = span.makeCurrent()) {
                         actual.onComplete();
-                        TracingPublisher.this.doOnFinish(span);
+                        doOnFinish(span);
                     } finally {
                         tracer.end(span);
                     }
@@ -139,11 +150,6 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
      */
     protected void doOnError(@NonNull Throwable throwable, @NonNull Context span) {
         // no-op
-    }
-
-    private void onError(Throwable t, Context span) {
-        tracer.onException(span, t);
-        doOnError(t, span);
     }
 
 }

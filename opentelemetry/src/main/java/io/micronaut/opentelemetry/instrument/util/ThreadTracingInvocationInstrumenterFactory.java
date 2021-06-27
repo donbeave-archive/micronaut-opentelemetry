@@ -47,6 +47,7 @@ final class ThreadTracingInvocationInstrumenterFactory implements InvocationInst
 
     /**
      * An optional invocation instrumentation.
+     *
      * @return An optional invocation instrumentation.
      */
     @Override
