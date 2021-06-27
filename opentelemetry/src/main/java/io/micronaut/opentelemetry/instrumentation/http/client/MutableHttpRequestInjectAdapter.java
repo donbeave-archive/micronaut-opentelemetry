@@ -20,13 +20,13 @@ import io.opentelemetry.context.propagation.TextMapSetter;
 
 final class MutableHttpRequestInjectAdapter implements TextMapSetter<MutableHttpRequest<?>> {
 
-  static final MutableHttpRequestInjectAdapter SETTER = new MutableHttpRequestInjectAdapter();
+    static final MutableHttpRequestInjectAdapter SETTER = new MutableHttpRequestInjectAdapter();
 
-  @Override
-  public void set(MutableHttpRequest<?> carrier, String key, String value) {
-    if (carrier == null) {
-      return;
+    @Override
+    public void set(MutableHttpRequest<?> carrier, String key, String value) {
+        if (carrier == null) {
+            return;
+        }
+        carrier.header(key, value);
     }
-    carrier.header(key, value);
-  }
 }

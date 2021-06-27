@@ -21,6 +21,9 @@ import java.lang.reflect.Method;
 
 public final class SpanNames {
 
+    private SpanNames() {
+    }
+
     /**
      * This method is used to generate an acceptable span (operation) name based on a given method
      * reference. Anonymous classes are named based on their parent.
@@ -61,9 +64,6 @@ public final class SpanNames {
             }
         }
         return className;
-    }
-
-    private SpanNames() {
     }
 
 }
