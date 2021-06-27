@@ -96,8 +96,9 @@ public class OpenTelemetryConfig {
     }
 
     @PreDestroy
-    public void preDestroy(SpanProcessor spanProcessor) {
+    public void preDestroy(SpanProcessor spanProcessor, TracingAssembly tracingAssembly) {
         GlobalOpenTelemetry.resetForTest();
+        tracingAssembly.disable();
     }
 
 }
