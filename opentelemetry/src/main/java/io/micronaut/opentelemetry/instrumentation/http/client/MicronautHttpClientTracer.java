@@ -63,6 +63,6 @@ class MicronautHttpClientTracer extends
 
     @Override
     protected String getInstrumentationName() {
-        return "io.micronaut.opentelemetry.micronaut-opentelemetry-1.0";
+        return "io.micronaut.opentelemetry.micronaut-http-client";
     }
 }
