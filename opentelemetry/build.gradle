@@ -1,6 +1,10 @@
 repositories {
     mavenLocal()
     mavenCentral()
+    maven {
+        // TODO remove after OTEL 1.4.0 instrumentation will be released
+        url 'https://oss.sonatype.org/content/repositories/snapshots'
+    }
 }
 
 dependencies {
@@ -34,11 +38,12 @@ dependencies {
     compileOnly("io.grpc:grpc-netty")
     compileOnly("io.grpc:grpc-netty-shaded")
 
+    api("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:1.4.0-alpha-SNAPSHOT")
+    api("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api-caching:1.4.0-alpha-SNAPSHOT")
+
     api("io.opentelemetry.instrumentation:opentelemetry-grpc-1.6:1.4.0-alpha-SNAPSHOT")
     api("io.opentelemetry.instrumentation:opentelemetry-logback-1.0:1.4.0-alpha-SNAPSHOT")
     api("io.opentelemetry.instrumentation:opentelemetry-rxjava-2.0:1.4.0-alpha-SNAPSHOT")
-
-    // TODO still in progress
     api("io.opentelemetry.instrumentation:opentelemetry-jdbc:1.4.0-alpha-SNAPSHOT")
 }
 
