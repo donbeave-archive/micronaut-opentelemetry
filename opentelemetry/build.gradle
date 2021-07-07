@@ -1,3 +1,10 @@
+// TODO remove me later
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+// end TODO remove me later
+
 repositories {
     mavenLocal()
     mavenCentral()
