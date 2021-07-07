@@ -27,7 +27,17 @@ subprojects { Project subproject ->
     publishing {
         publications {
             mavenJava(MavenPublication) {
-                from(components.java)
+                from components.java
+                pom.withXml {
+                    asNode().dependencyManagement.each {
+                        it.parent().remove(it)
+                    }
+                }
+                versionMapping {
+                    allVariants {
+                        fromResolutionResult()
+                    }
+                }
             }
         }
     }
