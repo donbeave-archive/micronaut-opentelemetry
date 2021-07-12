@@ -8,5 +8,5 @@ plugins {
 dependencies {
     api "io.micronaut:micronaut-inject:$micronautVersion"
     api "io.micronaut:micronaut-aop:$micronautVersion"
-    api "io.opentelemetry:opentelemetry-extension-annotations:1.3.0"
+    api "io.opentelemetry:opentelemetry-extension-annotations:1.4.0"
 }
