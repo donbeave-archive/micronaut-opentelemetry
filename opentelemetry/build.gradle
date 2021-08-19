@@ -38,6 +38,7 @@ dependencies {
     api("io.opentelemetry:opentelemetry-proto")
     api("io.opentelemetry:opentelemetry-api-metrics")
     api("io.opentelemetry:opentelemetry-exporter-otlp-common")
+    api("io.opentelemetry:opentelemetry-extension-annotations")
 
     implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:1.4.1-alpha"))
     api("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")

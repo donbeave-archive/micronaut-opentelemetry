@@ -17,13 +17,13 @@ package io.micronaut.opentelemetry.interceptor;
 
 import io.micronaut.aop.InterceptPhase;
 import io.micronaut.aop.InterceptedMethod;
+import io.micronaut.aop.InterceptorBean;
 import io.micronaut.aop.MethodInterceptor;
 import io.micronaut.aop.MethodInvocationContext;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.inject.ExecutableMethod;
-import io.micronaut.opentelemetry.annotation.WithSpanAdvice;
 import io.micronaut.opentelemetry.instrumentation.util.MicronautTracer;
 import io.micronaut.opentelemetry.instrumentation.util.TracingPublisher;
 import io.opentelemetry.api.trace.Span;
@@ -31,6 +31,7 @@ import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.extension.annotations.WithSpan;
 import io.opentelemetry.instrumentation.api.tracer.ClientSpan;
 import io.opentelemetry.instrumentation.api.tracer.ServerSpan;
 import io.opentelemetry.instrumentation.api.tracer.SpanNames;
@@ -53,6 +54,7 @@ import java.util.concurrent.CompletionStage;
  */
 @Singleton
 @Requires(beans = Tracer.class)
+@InterceptorBean(WithSpan.class)
 public class TraceInterceptor implements MethodInterceptor<Object, Object> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TraceInterceptor.class);
@@ -73,7 +75,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
     @SuppressWarnings("unchecked")
     @Override
     public Object intercept(MethodInvocationContext<Object, Object> invocationContext) {
-        AnnotationValue<WithSpanAdvice> withSpanAdvice = invocationContext.getAnnotation(WithSpanAdvice.class);
+        AnnotationValue<WithSpan> withSpanAdvice = invocationContext.getAnnotation(WithSpan.class);
 
         SpanKind kind = extractSpanKind(withSpanAdvice);
         Context current = Context.current();
@@ -153,7 +155,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
         span.setAttribute(SemanticAttributes.CODE_FUNCTION, context.getMethodName());
     }
 
-    private Context startSpan(Context parentContext, AnnotationValue<WithSpanAdvice> withSpanAdvice,
+    private Context startSpan(Context parentContext, AnnotationValue<WithSpan> withSpanAdvice,
                               ExecutableMethod executableMethod, SpanKind kind) {
         Context context = tracer
                 .startSpan(parentContext, spanNameForMethodWithAnnotation(withSpanAdvice, executableMethod), kind);
@@ -172,27 +174,16 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
      * reference. It first checks for existence of {@link WithSpanAdvice} annotation. If it is present, then
      * tries to derive name from its {@code value} attribute. Otherwise delegates to spanNameForMethod(Method).
      */
-    private String spanNameForMethodWithAnnotation(AnnotationValue<WithSpanAdvice> withSpanAdvice,
+    private String spanNameForMethodWithAnnotation(AnnotationValue<WithSpan> withSpanAdvice,
                                                    ExecutableMethod executableMethod) {
         Optional<String> value = withSpanAdvice.getValue(String.class);
         return value.orElseGet(() -> SpanNames.fromMethod(executableMethod.getTargetMethod()));
     }
 
-    private SpanKind extractSpanKind(AnnotationValue<WithSpanAdvice> withSpanAdvice) {
-        io.micronaut.opentelemetry.api.SpanKind applicationKind = withSpanAdvice
-                .get(KIND_MEMBER, io.micronaut.opentelemetry.api.SpanKind.class)
-                .orElse(io.micronaut.opentelemetry.api.SpanKind.INTERNAL);
-
-        return toAgentOrNull(applicationKind);
-    }
-
-    private SpanKind toAgentOrNull(io.micronaut.opentelemetry.api.SpanKind applicationSpanKind) {
-        try {
-            return SpanKind.valueOf(applicationSpanKind.name());
-        } catch (IllegalArgumentException e) {
-            LOG.debug("unexpected span kind: {}", applicationSpanKind.name());
-            return SpanKind.INTERNAL;
-        }
+    private SpanKind extractSpanKind(AnnotationValue<WithSpan> withSpanAdvice) {
+        return withSpanAdvice
+                .get(KIND_MEMBER, SpanKind.class)
+                .orElse(SpanKind.INTERNAL);
     }
 
 }
