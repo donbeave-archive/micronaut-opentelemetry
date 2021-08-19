@@ -19,9 +19,9 @@ import io.grpc.ClientInterceptor;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Singleton;
 
 import javax.annotation.Nonnull;
-import javax.inject.Singleton;
 
 /**
  * Factory that builds the Tracing interceptors.

@@ -36,11 +36,11 @@ import io.opentelemetry.instrumentation.api.tracer.ClientSpan;
 import io.opentelemetry.instrumentation.api.tracer.ServerSpan;
 import io.opentelemetry.instrumentation.api.tracer.SpanNames;
 import io.opentelemetry.semconv.trace.attributes.SemanticAttributes;
+import jakarta.inject.Singleton;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Singleton;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
@@ -171,7 +171,7 @@ public class TraceInterceptor implements MethodInterceptor<Object, Object> {
 
     /**
      * This method is used to generate an acceptable span (operation) name based on a given method
-     * reference. It first checks for existence of {@link WithSpanAdvice} annotation. If it is present, then
+     * reference. It first checks for existence of {@link WithSpan} annotation. If it is present, then
      * tries to derive name from its {@code value} attribute. Otherwise delegates to spanNameForMethod(Method).
      */
     private String spanNameForMethodWithAnnotation(AnnotationValue<WithSpan> withSpanAdvice,

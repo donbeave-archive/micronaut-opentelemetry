@@ -23,8 +23,8 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextStorage;
 import io.opentelemetry.context.Scope;
+import jakarta.inject.Singleton;
 
-import javax.inject.Singleton;
 
 /**
  * Tracing invocation instrument for OpenTelemetry.
