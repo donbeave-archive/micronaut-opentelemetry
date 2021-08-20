@@ -27,8 +27,7 @@ import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
-// TODO restore me later
-//import io.opentelemetry.instrumentation.rxjava2.TracingAssembly;
+import io.opentelemetry.instrumentation.reactor.TracingOperator;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -42,6 +41,9 @@ import javax.annotation.PreDestroy;
 import java.time.Duration;
 
 import static io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME;
+
+// TODO restore me later
+//import io.opentelemetry.instrumentation.rxjava2.TracingAssembly;
 
 // TODO REMOVE ME PLEASE
 
@@ -61,6 +63,14 @@ public class OpenTelemetryConfig {
         return tracingAssembly;
     }
      */
+
+    @Bean
+    @Context
+    public TracingOperator tracingOperator() {
+        TracingOperator tracingOperator = TracingOperator.create();
+        tracingOperator.registerOnEachOperator();
+        return tracingOperator;
+    }
 
     @Bean
     @Singleton
@@ -116,13 +126,16 @@ public class OpenTelemetryConfig {
 
     @PreDestroy
     public void preDestroy(
+            TracingOperator tracingOperator
             // TODO restore me later
             //TracingAssembly tracingAssembly
     ) {
-        GlobalOpenTelemetry.resetForTest();
+        tracingOperator.resetOnEachOperator();
 
         // TODO restore me later
         //tracingAssembly.disable();
+
+        GlobalOpenTelemetry.resetForTest();
     }
 
 }
