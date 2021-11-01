@@ -40,7 +40,7 @@ dependencies {
     api("io.opentelemetry:opentelemetry-exporter-otlp-common")
     api("io.opentelemetry:opentelemetry-extension-annotations")
 
-    implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:1.4.1-alpha"))
+    implementation(platform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:1.7.1-alpha"))
     api("io.opentelemetry.instrumentation:opentelemetry-instrumentation-api")
     api("io.opentelemetry.instrumentation:opentelemetry-grpc-1.6")
     api("io.opentelemetry.instrumentation:opentelemetry-logback-1.0")
