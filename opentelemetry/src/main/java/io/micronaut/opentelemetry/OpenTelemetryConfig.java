@@ -27,7 +27,7 @@ import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
-import io.opentelemetry.instrumentation.reactor.TracingOperator;
+import io.opentelemetry.instrumentation.reactor.ContextPropagationOperator;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -66,10 +66,10 @@ public class OpenTelemetryConfig {
 
     @Bean
     @Context
-    public TracingOperator tracingOperator() {
-        TracingOperator tracingOperator = TracingOperator.create();
-        tracingOperator.registerOnEachOperator();
-        return tracingOperator;
+    public ContextPropagationOperator contextPropagationOperator() {
+        ContextPropagationOperator contextPropagationOperator = ContextPropagationOperator.create();
+        contextPropagationOperator.registerOnEachOperator();
+        return contextPropagationOperator;
     }
 
     @Bean
@@ -126,11 +126,11 @@ public class OpenTelemetryConfig {
 
     @PreDestroy
     public void preDestroy(
-            TracingOperator tracingOperator
+            ContextPropagationOperator contextPropagationOperator
             // TODO restore me later
             //TracingAssembly tracingAssembly
     ) {
-        tracingOperator.resetOnEachOperator();
+        contextPropagationOperator.resetOnEachOperator();
 
         // TODO restore me later
         //tracingAssembly.disable();

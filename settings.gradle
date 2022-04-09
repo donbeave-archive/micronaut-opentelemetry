@@ -1,3 +1,15 @@
-rootProject.name = 'opentelemetry'
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+plugins {
+    id 'io.micronaut.build.shared.settings' version '5.3.2'
+}
+
+rootProject.name = 'micronaut-opentelemetry'
 
 include 'opentelemetry'
+include 'opentelemetry-bom'

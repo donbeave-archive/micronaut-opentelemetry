@@ -22,7 +22,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
-import io.opentelemetry.instrumentation.api.tracer.BaseTracer;
+import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -38,7 +38,7 @@ import org.reactivestreams.Subscription;
 public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
 
     private final Publisher<T> publisher;
-    private final BaseTracer tracer;
+    private final Instrumenter instrumenter;
     @Nullable
     private final String spanName;
     private final SpanKind kind;
@@ -47,10 +47,10 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
     /**
      * Creates a new tracing publisher for the given arguments.
      */
-    public TracingPublisher(Publisher<T> publisher, BaseTracer tracer, @Nullable String spanName, SpanKind kind,
+    public TracingPublisher(Publisher<T> publisher, Instrumenter instrumenter, @Nullable String spanName, SpanKind kind,
                             Context parentContext) {
         this.publisher = publisher;
-        this.tracer = tracer;
+        this.instrumenter = instrumenter;
         this.spanName = spanName;
         this.kind = kind;
         this.parentContext = parentContext;
@@ -60,12 +60,12 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
     public void subscribe(Subscriber<? super T> actual) {
         // TODO remove me?
         Context parentContext2 = Context.current();
-        if (!tracer.shouldStartSpan(parentContext, kind)) {
+        if (!instrumenter.shouldStartSpan(parentContext, kind)) {
             publisher.subscribe(actual);
             return;
         }
 
-        Context span = tracer.startSpan(parentContext, spanName, kind);
+        Context span = instrumenter.startSpan(parentContext, spanName, kind);
 
         try (Scope ignored = span.makeCurrent()) {
             publisher.subscribe(new Subscriber<T>() {
@@ -84,18 +84,18 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
                         actual.onNext(object);
                         doOnFinish(span);
                     } finally {
-                        tracer.end(span);
+                        instrumenter.end(span);
                     }
                 }
 
                 @Override
                 public void onError(Throwable t) {
                     try (Scope ignored = span.makeCurrent()) {
-                        tracer.onException(span, t);
+                        instrumenter.onException(span, t);
                         doOnError(t, span);
                         actual.onError(t);
                     } finally {
-                        tracer.end(span);
+                        instrumenter.end(span);
                     }
                 }
 
@@ -105,7 +105,7 @@ public class TracingPublisher<T> implements Publishers.MicronautPublisher<T> {
                         actual.onComplete();
                         doOnFinish(span);
                     } finally {
-                        tracer.end(span);
+                        instrumenter.end(span);
                     }
                 }
             });

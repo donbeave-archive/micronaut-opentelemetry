@@ -45,7 +45,7 @@ public class GrpcClientTracingInterceptorConfiguration {
      * @param tracer The tracer
      */
     protected GrpcClientTracingInterceptorConfiguration(OpenTelemetry openTelemetry) {
-        this.builder = GrpcTracing.newBuilder(openTelemetry);
+        this.builder = GrpcTracing.create(openTelemetry);
     }
 
     /**

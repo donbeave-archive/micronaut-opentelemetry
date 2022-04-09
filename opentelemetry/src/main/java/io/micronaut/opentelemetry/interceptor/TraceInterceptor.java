@@ -24,7 +24,6 @@ import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.inject.ExecutableMethod;
-import io.micronaut.opentelemetry.instrumentation.util.MicronautTracer;
 import io.micronaut.opentelemetry.instrumentation.util.TracingPublisher;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
