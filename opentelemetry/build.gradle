@@ -13,7 +13,7 @@ dependencies {
     implementation("io.micronaut.grpc:micronaut-grpc-client-runtime")
 
     implementation(platform("io.opentelemetry:opentelemetry-bom:1.12.0"))
-    implementation(platform("io.opentelemetry:opentelemetry-bom-alpha:1.12.0-alpha"))
+    implementation(platform("io.opentelemetry:opentelemetry-bom-alpha:1.13.0-alpha"))
     api("io.opentelemetry:opentelemetry-sdk")
     api("io.opentelemetry:opentelemetry-exporter-otlp")
     api("io.opentelemetry:opentelemetry-extension-annotations")
