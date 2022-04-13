@@ -25,6 +25,7 @@ import io.micronaut.http.filter.HttpClientFilter;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -39,10 +40,10 @@ import org.reactivestreams.Subscription;
 @Requires(beans = OpenTelemetry.class)
 public class OpenTelemetryClientFilter implements HttpClientFilter {
 
-    private final MicronautHttpClientTracer tracer;
+    private final Instrumenter<MutableHttpRequest, HttpResponse> instrumenter;
 
-    public OpenTelemetryClientFilter(OpenTelemetry openTelemetry) {
-        tracer = new MicronautHttpClientTracer(openTelemetry);
+    public OpenTelemetryClientFilter(HttpClientTracingInterceptorConfiguration configuration) {
+        instrumenter = configuration.getBuilder().build();
     }
 
     @Override
@@ -50,47 +51,46 @@ public class OpenTelemetryClientFilter implements HttpClientFilter {
         Publisher<? extends HttpResponse<?>> requestPublisher = chain.proceed(request);
 
         Context parentContext = Context.current();
-        if (!tracer.shouldStartSpan(parentContext)) {
+        if (!instrumenter.shouldStart(parentContext, request)) {
             return requestPublisher;
         }
 
         return (Publishers.MicronautPublisher<HttpResponse<?>>) actual -> {
-            Context span = tracer.startSpan(parentContext, request, request);
+            Context context = instrumenter.start(parentContext, request);
 
-            try (Scope ignored = span.makeCurrent()) {
+            try (Scope ignored = context.makeCurrent()) {
                 requestPublisher.subscribe(new Subscriber<HttpResponse<?>>() {
                     @Override
                     public void onSubscribe(Subscription s) {
-                        try (Scope ignored = span.makeCurrent()) {
+                        try (Scope ignored = context.makeCurrent()) {
                             actual.onSubscribe(s);
                         }
                     }
 
                     @Override
-                    public void onNext(HttpResponse<?> object) {
-                        try (Scope ignored = span.makeCurrent()) {
-                            actual.onNext(object);
+                    public void onNext(HttpResponse<?> response) {
+                        try (Scope ignored = context.makeCurrent()) {
+                            actual.onNext(response);
                         } finally {
-                            tracer.end(span);
+                            instrumenter.end(context, request, response, null);
                         }
                     }
 
                     @Override
                     public void onError(Throwable t) {
-                        try (Scope ignored = span.makeCurrent()) {
-                            tracer.onException(span, t);
+                        try (Scope ignored = context.makeCurrent()) {
                             actual.onError(t);
                         } finally {
-                            tracer.end(span);
+                            instrumenter.end(context, request, null, t);
                         }
                     }
 
                     @Override
                     public void onComplete() {
-                        try (Scope ignored = span.makeCurrent()) {
+                        try (Scope ignored = context.makeCurrent()) {
                             actual.onComplete();
                         } finally {
-                            tracer.end(span);
+                            instrumenter.end(context, request, null, null);
                         }
                     }
                 });

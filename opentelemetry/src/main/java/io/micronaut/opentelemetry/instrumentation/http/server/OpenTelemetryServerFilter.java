@@ -17,21 +17,19 @@ package io.micronaut.opentelemetry.instrumentation.http.server;
 
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.async.publisher.Publishers;
-import io.micronaut.http.HttpAttributes;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Filter;
 import io.micronaut.http.filter.HttpServerFilter;
 import io.micronaut.http.filter.ServerFilterChain;
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
-
-import java.util.Optional;
 
 /**
  * An HTTP server instrumentation filter that uses Open Telemetry.
@@ -45,13 +43,13 @@ public class OpenTelemetryServerFilter implements HttpServerFilter {
 
     private static final CharSequence APPLIED = OpenTelemetryServerFilter.class.getName() + "-applied";
 
-    private final MicronautHttpServerTracer tracer;
+    private final Instrumenter<HttpRequest, HttpResponse> instrumenter;
 
     /**
      * Creates an HTTP server instrumentation filter.
      */
-    public OpenTelemetryServerFilter(OpenTelemetry openTelemetry) {
-        this.tracer = new MicronautHttpServerTracer(openTelemetry);
+    public OpenTelemetryServerFilter(HttpServerTracingInterceptorConfiguration configuration) {
+        instrumenter = configuration.builder.build();
     }
 
     @Override
@@ -67,58 +65,47 @@ public class OpenTelemetryServerFilter implements HttpServerFilter {
         Publisher<MutableHttpResponse<?>> requestPublisher = chain.proceed(request);
 
         return (Publishers.MicronautPublisher<MutableHttpResponse<?>>) actual -> {
-            Context span = tracer.startSpan(request, request, request, resolveSpanName(request));
+            Context parentContext = Context.current();
+            Context context = instrumenter.start(parentContext, request);
 
-            try (Scope ignored = span.makeCurrent()) {
+            try (Scope ignored = context.makeCurrent()) {
                 requestPublisher.subscribe(new Subscriber<MutableHttpResponse<?>>() {
                     @Override
                     public void onSubscribe(Subscription s) {
-                        try (Scope ignored = span.makeCurrent()) {
+                        try (Scope ignored = context.makeCurrent()) {
                             actual.onSubscribe(s);
                         }
                     }
 
                     @Override
-                    public void onNext(MutableHttpResponse<?> object) {
-                        try (Scope ignored = span.makeCurrent()) {
-                            actual.onNext(object);
+                    public void onNext(MutableHttpResponse<?> response) {
+                        try (Scope ignored = context.makeCurrent()) {
+                            actual.onNext(response);
                         } finally {
-                            tracer.end(span);
+                            instrumenter.end(context, request, response, null);
                         }
                     }
 
                     @Override
                     public void onError(Throwable t) {
-                        try (Scope ignored = span.makeCurrent()) {
-                            tracer.onException(span, t);
+                        try (Scope ignored = context.makeCurrent()) {
                             actual.onError(t);
                         } finally {
-                            tracer.end(span);
+                            instrumenter.end(context, request, null, t);
                         }
                     }
 
                     @Override
                     public void onComplete() {
-                        try (Scope ignored = span.makeCurrent()) {
+                        try (Scope ignored = context.makeCurrent()) {
                             actual.onComplete();
                         } finally {
-                            tracer.end(span);
+                            instrumenter.end(context, request, null, null);
                         }
                     }
                 });
             }
         };
-    }
-
-    /**
-     * Resolve the span name to use for the request.
-     *
-     * @param request The request
-     * @return The span name
-     */
-    protected String resolveSpanName(HttpRequest<?> request) {
-        Optional<String> route = request.getAttribute(HttpAttributes.URI_TEMPLATE, String.class);
-        return route.map(s -> request.getMethodName() + " " + s).orElse(request.getMethodName() + " " + request.getPath());
     }
 
 }

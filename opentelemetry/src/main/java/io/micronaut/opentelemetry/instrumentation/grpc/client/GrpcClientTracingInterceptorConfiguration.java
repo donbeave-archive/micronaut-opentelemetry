@@ -17,12 +17,11 @@ package io.micronaut.opentelemetry.instrumentation.grpc.client;
 
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.grpc.channels.GrpcDefaultManagedChannelConfiguration;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTracing;
 import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTracingBuilder;
-
-import javax.annotation.Nonnull;
 
 /**
  * Adds a TracingClientInterceptor when OpenTelemetry for GRPC is on the classpath.
@@ -33,25 +32,24 @@ import javax.annotation.Nonnull;
 @ConfigurationProperties(GrpcClientTracingInterceptorConfiguration.PREFIX)
 public class GrpcClientTracingInterceptorConfiguration {
 
-    // TODO
     public static final String PREFIX = GrpcDefaultManagedChannelConfiguration.PREFIX + ".tracing";
 
-    @ConfigurationBuilder(prefixes = "with", allowZeroArgs = true)
+    @ConfigurationBuilder(allowZeroArgs = true)
     protected final GrpcTracingBuilder builder;
 
     /**
      * Default constructor.
      *
-     * @param tracer The tracer
+     * @param openTelemetry OpenTelemetry
      */
     protected GrpcClientTracingInterceptorConfiguration(OpenTelemetry openTelemetry) {
-        this.builder = GrpcTracing.create(openTelemetry);
+        this.builder = GrpcTracing.builder(openTelemetry);
     }
 
     /**
      * @return The {@link GrpcTracingBuilder}
      */
-    @Nonnull
+    @NonNull
     public GrpcTracingBuilder getBuilder() {
         return builder;
     }

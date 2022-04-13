@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micronaut.opentelemetry.instrumentation.grpc.server;
+package io.micronaut.opentelemetry.instrumentation.http.server;
 
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
-import io.micronaut.grpc.server.GrpcServerConfiguration;
+import io.micronaut.opentelemetry.instrumentation.http.MicronautHttpServerTelemetryBuilder;
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTracing;
-import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTracingBuilder;
 
 import javax.annotation.Nonnull;
 
@@ -30,28 +28,28 @@ import javax.annotation.Nonnull;
  * @author Alexey Zhokhov
  * @since 1.0
  */
-@ConfigurationProperties(GrpcServerTracingInterceptorConfiguration.PREFIX)
-public class GrpcServerTracingInterceptorConfiguration {
+@ConfigurationProperties(HttpServerTracingInterceptorConfiguration.PREFIX)
+public class HttpServerTracingInterceptorConfiguration {
 
-    public static final String PREFIX = GrpcServerConfiguration.PREFIX + ".tracing";
+    public static final String PREFIX = "http.server.tracing";
 
     @ConfigurationBuilder(allowZeroArgs = true)
-    protected final GrpcTracingBuilder builder;
+    protected final MicronautHttpServerTelemetryBuilder builder;
 
     /**
      * Default constructor.
      *
      * @param openTelemetry OpenTelemetry
      */
-    protected GrpcServerTracingInterceptorConfiguration(OpenTelemetry openTelemetry) {
-        this.builder = GrpcTracing.builder(openTelemetry);
+    protected HttpServerTracingInterceptorConfiguration(OpenTelemetry openTelemetry) {
+        this.builder = new MicronautHttpServerTelemetryBuilder(openTelemetry);
     }
 
     /**
-     * @return The {@link GrpcTracingBuilder}
+     * @return The {@link MicronautHttpServerTelemetryBuilder}
      */
     @Nonnull
-    public GrpcTracingBuilder getBuilder() {
+    public MicronautHttpServerTelemetryBuilder getBuilder() {
         return builder;
     }
 

@@ -13,45 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micronaut.opentelemetry.instrumentation.grpc.server;
+package io.micronaut.opentelemetry.instrumentation.http.client;
 
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
-import io.micronaut.grpc.server.GrpcServerConfiguration;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.opentelemetry.instrumentation.http.MicronautHttpClientTelemetryBuilder;
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTracing;
-import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTracingBuilder;
-
-import javax.annotation.Nonnull;
 
 /**
- * Adds a TracingServerInterceptor when OpenTelemetry for GRPC is on the classpath.
+ * Adds a TracingClientInterceptor when OpenTelemetry for GRPC is on the classpath.
  *
  * @author Alexey Zhokhov
  * @since 1.0
  */
-@ConfigurationProperties(GrpcServerTracingInterceptorConfiguration.PREFIX)
-public class GrpcServerTracingInterceptorConfiguration {
+@ConfigurationProperties(HttpClientTracingInterceptorConfiguration.PREFIX)
+public class HttpClientTracingInterceptorConfiguration {
 
-    public static final String PREFIX = GrpcServerConfiguration.PREFIX + ".tracing";
+    public static final String PREFIX = "http.client.tracing";
 
     @ConfigurationBuilder(allowZeroArgs = true)
-    protected final GrpcTracingBuilder builder;
+    protected final MicronautHttpClientTelemetryBuilder builder;
 
     /**
      * Default constructor.
      *
      * @param openTelemetry OpenTelemetry
      */
-    protected GrpcServerTracingInterceptorConfiguration(OpenTelemetry openTelemetry) {
-        this.builder = GrpcTracing.builder(openTelemetry);
+    protected HttpClientTracingInterceptorConfiguration(OpenTelemetry openTelemetry) {
+        this.builder = new MicronautHttpClientTelemetryBuilder(openTelemetry);
     }
 
     /**
-     * @return The {@link GrpcTracingBuilder}
+     * @return The {@link MicronautHttpClientTelemetryBuilder}
      */
-    @Nonnull
-    public GrpcTracingBuilder getBuilder() {
+    @NonNull
+    public MicronautHttpClientTelemetryBuilder getBuilder() {
         return builder;
     }
 
